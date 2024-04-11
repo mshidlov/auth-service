@@ -1,0 +1,112 @@
+import { randomBytes, pbkdf2 } from 'crypto';
+import { compare, genSalt, hash as bcryptHash } from 'bcrypt';
+import { hash as argon2Hash, verify, argon2id } from 'argon2';
+import { Logger } from '@nestjs/common';
+
+interface PasswordHash {
+    salt: string;
+    hash: string;
+    iterations: number;
+}
+
+type HashingAlgorithm = 'pbkdf2' | 'bcrypt' | 'argon2';
+type DigestAlgorithm = 'sha1' | 'sha256' | 'sha512';
+
+export interface AuthOptions {
+    saltLength: number;
+    hashLength: number;
+    iterations: number;
+    digest: DigestAlgorithm;
+    algorithm: HashingAlgorithm;
+}
+
+export class AuthUtils {
+    private readonly logger: Logger = new Logger(AuthUtils.name) 
+
+    constructor(private options: AuthOptions) {
+    }
+
+    async hashPassword(password: string): Promise<PasswordHash> {
+        this.logger.debug('Hashing password');
+        switch (this.options.algorithm) {
+            case 'pbkdf2':
+                return this.pbkdf2Hash(password);
+            case 'bcrypt':
+                return this.bcryptHash(password);
+            case 'argon2':
+                return this.argon2Hash(password);
+            default:
+                throw new Error(`Unsupported algorithm: ${this.options.algorithm}`);
+        }
+    }
+
+    async isPasswordCorrect(savedHash: string, savedSalt: string, savedIterations: number, passwordAttempt: string): Promise<boolean> {
+        this.logger.debug('Checking password');
+        switch (this.options.algorithm) {
+            case 'pbkdf2':
+                return this.isPbkdf2PasswordCorrect(savedHash, savedSalt, savedIterations, passwordAttempt);
+            case 'bcrypt':
+                return this.isBcryptPasswordCorrect(savedHash, passwordAttempt);
+            case 'argon2':
+                return this.isArgon2PasswordCorrect(savedHash, passwordAttempt);
+            default:
+                throw new Error(`Unsupported algorithm: ${this.options.algorithm}`);
+        }
+    }
+
+    private pbkdf2Hash(password: string): Promise<PasswordHash> {
+        this.logger.debug('Hashing password with PBKDF2');
+        const salt = randomBytes(this.options.saltLength).toString('base64');
+        return new Promise((resolve, reject) => {
+            pbkdf2(password, salt, this.options.iterations, this.options.hashLength, this.options.digest, (err, derivedKey) => {
+                if (err) reject(err);
+                resolve({
+                    salt: salt,
+                    hash: derivedKey.toString('hex'),
+                    iterations: this.options.iterations
+                });
+            });
+        });
+    }
+
+    private async bcryptHash(password: string): Promise<PasswordHash> {
+        this.logger.debug('Hashing password with bcrypt');
+        const salt = await genSalt(this.options.saltLength);
+        const hash = await bcryptHash(password, salt);
+        return {
+            salt: hash,
+            hash: hash,
+            iterations: this.options.iterations
+        };
+    }
+
+    private async argon2Hash(password: string): Promise<PasswordHash> {
+        this.logger.debug('Hashing password with argon2');
+        const hash = await argon2Hash(password, { type: argon2id });
+        return {
+            salt: '',
+            hash: hash,
+            iterations: this.options.iterations
+        };
+    }
+
+    private isPbkdf2PasswordCorrect(savedHash: string, savedSalt: string, savedIterations: number, passwordAttempt: string): Promise<boolean> {
+        this.logger.debug('Checking password with PBKDF2');
+        return new Promise((resolve, reject) => {
+            pbkdf2(passwordAttempt, savedSalt, savedIterations, this.options.hashLength, this.options.digest, (err, derivedKey) => {
+                if (err) reject(err);
+                resolve(savedHash === derivedKey.toString('hex'));
+            });
+        });
+    }
+
+    private async isBcryptPasswordCorrect(savedHash: string, passwordAttempt: string): Promise<boolean> {
+        this.logger.debug('Checking password with bcrypt');
+        return await compare(passwordAttempt, savedHash);
+    }
+
+    private async isArgon2PasswordCorrect(savedHash: string, passwordAttempt: string): Promise<boolean> {
+        this.logger.debug('Checking password with argon2');
+        return await verify(savedHash, passwordAttempt);
+    }
+}
