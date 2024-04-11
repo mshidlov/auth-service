@@ -18,23 +18,25 @@ export interface AuthOptions {
     iterations: number;
     digest: DigestAlgorithm;
     algorithm: HashingAlgorithm;
+    pepper: string;
 }
 
 export class AuthUtils {
-    private readonly logger: Logger = new Logger(AuthUtils.name) 
+    private readonly logger: Logger = new Logger(AuthUtils.name)
 
     constructor(private options: AuthOptions) {
     }
 
     async hashPassword(password: string): Promise<PasswordHash> {
         this.logger.debug('Hashing password');
+        const passwordWithPepper = password + this.options.pepper;
         switch (this.options.algorithm) {
             case 'pbkdf2':
-                return this.pbkdf2Hash(password);
+                return this.pbkdf2Hash(passwordWithPepper);
             case 'bcrypt':
-                return this.bcryptHash(password);
+                return this.bcryptHash(passwordWithPepper);
             case 'argon2':
-                return this.argon2Hash(password);
+                return this.argon2Hash(passwordWithPepper);
             default:
                 throw new Error(`Unsupported algorithm: ${this.options.algorithm}`);
         }
@@ -42,13 +44,15 @@ export class AuthUtils {
 
     async isPasswordCorrect(savedHash: string, savedSalt: string, savedIterations: number, passwordAttempt: string): Promise<boolean> {
         this.logger.debug('Checking password');
+        // Add the pepper to the password attempt before checking
+        const passwordAttemptWithPepper = passwordAttempt + this.options.pepper;
         switch (this.options.algorithm) {
             case 'pbkdf2':
-                return this.isPbkdf2PasswordCorrect(savedHash, savedSalt, savedIterations, passwordAttempt);
+                return this.isPbkdf2PasswordCorrect(savedHash, savedSalt, savedIterations, passwordAttemptWithPepper);
             case 'bcrypt':
-                return this.isBcryptPasswordCorrect(savedHash, passwordAttempt);
+                return this.isBcryptPasswordCorrect(savedHash, passwordAttemptWithPepper);
             case 'argon2':
-                return this.isArgon2PasswordCorrect(savedHash, passwordAttempt);
+                return this.isArgon2PasswordCorrect(savedHash, passwordAttemptWithPepper);
             default:
                 throw new Error(`Unsupported algorithm: ${this.options.algorithm}`);
         }

@@ -8,7 +8,7 @@ describe('AuthUtils', () => {
     const password = 'password';
     
     beforeEach(() => {
-        options = { saltLength: 10, hashLength: 64, iterations: 10000, digest: 'sha512', algorithm: 'pbkdf2' }
+        options = { saltLength: 10, hashLength: 64, iterations: 10000, digest: 'sha512', algorithm: 'pbkdf2', pepper: 'pepper' }
     });
 
     it('should hash password with PBKDF2', async () => {
