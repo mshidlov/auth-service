@@ -1,7 +1,11 @@
+import { plainToInstance } from 'class-transformer';
+import { validateOrReject } from 'class-validator';
 import { randomBytes, pbkdf2 } from 'crypto';
 import { compare, genSalt, hash as bcryptHash } from 'bcrypt';
 import { hash as argon2Hash, verify, argon2id } from 'argon2';
 import { Logger } from '@nestjs/common';
+import {JwtService} from "@nestjs/jwt";
+import {JwtPayloadDto} from "./jwt-payload.dto";
 
 interface PasswordHash {
     salt: string;
@@ -24,7 +28,8 @@ export interface AuthOptions {
 export class AuthUtils {
     private readonly logger: Logger = new Logger(AuthUtils.name)
 
-    constructor(private options: AuthOptions) {
+    constructor(private options: AuthOptions,
+                private jwtService: JwtService) {
     }
 
     async hashPassword(password: string): Promise<PasswordHash> {
@@ -112,5 +117,18 @@ export class AuthUtils {
     private async isArgon2PasswordCorrect(savedHash: string, passwordAttempt: string): Promise<boolean> {
         this.logger.debug('Checking password with argon2');
         return await verify(savedHash, passwordAttempt);
+    }
+
+    getUserJWT(jwtPayloadDto: JwtPayloadDto ): string {
+        return this.jwtService.sign(jwtPayloadDto);
+    }
+
+    async extractJWT(access_token: string): Promise<JwtPayloadDto> {
+        const decoded =  this.jwtService.decode(access_token, {json: true})
+        const instance = plainToInstance(JwtPayloadDto,decoded, {
+
+        })
+        await validateOrReject(instance)
+        return instance
     }
 }

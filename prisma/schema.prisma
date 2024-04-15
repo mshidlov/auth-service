@@ -1,0 +1,110 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model account {
+  id        BigInt   @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      user[]
+  role      role[]
+}
+
+model user {
+  id             BigInt        @id @default(autoincrement())
+  name           String
+  email          String        @unique
+  passwordId     BigInt
+  refreshTokenId BigInt
+  accountId      BigInt
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  password       password      @relation(fields: [passwordId], references: [id])
+  account        account       @relation(fields: [accountId], references: [id])
+  refreshToken   refreshToken?
+  userRole       userRole[]
+}
+
+model refreshToken {
+  id        BigInt   @id @default(autoincrement())
+  userId    BigInt   @unique
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      user     @relation(fields: [userId], references: [id])
+}
+
+model password {
+  id             BigInt   @id @default(autoincrement())
+  usersId        BigInt
+  salt           String
+  saltIterations Int
+  password       String
+  paperVersion   String
+  active         Boolean
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           user[]
+
+  @@index([usersId])
+}
+
+model role {
+  id              BigInt            @id @default(autoincrement())
+  accountId       BigInt
+  name            String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  account         account           @relation(fields: [accountId], references: [id])
+  userRole        userRole[]
+  rolePermissions rolePermissions[]
+}
+
+model userRole {
+  id        BigInt   @id @default(autoincrement())
+  userId    BigInt
+  roleId    BigInt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      user     @relation(fields: [userId], references: [id])
+  role      role     @relation(fields: [roleId], references: [id])
+}
+
+model permissions {
+  id              BigInt            @id @default(autoincrement())
+  name            String
+  resource        String
+  privilege       privilege
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  rolePermissions rolePermissions[]
+}
+
+model rolePermissions {
+  id           BigInt      @id @default(autoincrement())
+  roleId       BigInt
+  permissionId BigInt
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  role         role        @relation(fields: [roleId], references: [id])
+  permissions  permissions @relation(fields: [permissionId], references: [id])
+}
+
+enum privilege {
+  C
+  R
+  U
+  D
+}
