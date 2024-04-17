@@ -77,7 +77,9 @@ export class AuthController {
     @Get('refresh')
     async refresh(
         @Req() req: Request,
-        @Res() res: Response) : Promise<void> {
+        @Res({
+            passthrough: true
+        }) res: Response) : Promise<void> {
         const { access_token, refresh_token} = await this.authService.refresh({
             access_token: req.cookies.access_token || req.headers.authorization,
             refresh_token: req.cookies.refresh_token || req.headers['x-refresh-token'],

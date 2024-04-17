@@ -142,7 +142,7 @@ export class UserRepository {
     }
 
     async createAccountOwnerRole(prisma:transaction, id: bigint, accountId: bigint, permissions: permission[]): Promise<user_role & { role: role}> {
-        return prisma.userRole.create({
+        return prisma.user_role.create({
             data: {
                 user: {
                     connect:{
@@ -183,4 +183,12 @@ export class UserRepository {
     }
 
 
+    getRefreshToken(userId:number, token: string): Promise<refresh_token | null> {
+        return this.prisma.refresh_token.findFirst({
+            where: {
+                userId: BigInt(userId),
+                token,
+            }
+        })
+    }
 }

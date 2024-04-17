@@ -112,16 +112,11 @@ export class AuthUtils {
         return await verify(savedHash, passwordAttempt);
     }
 
-    getUserJWT(jwtPayloadDto: JwtPayloadDto ): string {
+    getUserJWT(jwtPayloadDto: JwtPayloadDto): string {
         return this.jwtService.sign(jwtPayloadDto);
     }
 
     async extractJWT(access_token: string): Promise<JwtPayloadDto> {
-        const decoded =  this.jwtService.decode(access_token, {json: true})
-        const instance = plainToInstance(JwtPayloadDto,decoded, {
-
-        })
-        await validateOrReject(instance)
-        return instance
+        return this.jwtService.decode(access_token)
     }
 }

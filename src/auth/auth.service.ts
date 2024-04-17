@@ -79,8 +79,17 @@ export class AuthService {
 
     async refresh(param: { access_token: any; refresh_token: any }): Promise<{ access_token: string; refresh_token: string; }> {
         const tokenPayLoad: JwtPayloadDto = await this.authUtils.extractJWT(param.access_token);
+        const refreshToken = await this.userRepository.getRefreshToken(tokenPayLoad.id,param.refresh_token);
+        if(!refreshToken || refreshToken.userId !== BigInt(tokenPayLoad.id)) {
+            throw new UnauthorizedException("Invalid refresh token provided.");
+        }
         return {
-            access_token: this.authUtils.getUserJWT(tokenPayLoad),
+            access_token: this.authUtils.getUserJWT({
+                id: tokenPayLoad.id,
+                account: tokenPayLoad.account,
+                roles: tokenPayLoad.roles,
+                permissions: tokenPayLoad.permissions
+            }),
             refresh_token: param.refresh_token,
         }
     }
