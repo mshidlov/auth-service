@@ -96,8 +96,8 @@ export class UserRepository {
         });
     }
 
-    deleteRefreshToken(userId: bigint): Promise<refresh_token> {
-        return this.prisma.refresh_token.delete({
+    deleteRefreshToken(userId: bigint): Promise<{count: number}> {
+        return this.prisma.refresh_token.deleteMany({
             where: {
                 userId,
             },

@@ -32,8 +32,7 @@ export class AuthController {
         passthrough: true
     }) res: Response): Promise<LoginResponseDto> {
         const response = await this.authService.signIn(loginDto.email, loginDto.password);
-        res.cookie('access_token', response.access_token, {httpOnly: true});
-        res.cookie('refresh_token', response.refresh_token, {httpOnly: true});
+        this.setCookies(res, response.access_token, response.refresh_token);
         return response;
     }
 
@@ -46,8 +45,7 @@ export class AuthController {
             ...signupDto
         });
         this.logger.log(`User ${response.user.id} signed up`);
-        res.cookie('access_token', response.access_token, {httpOnly: true});
-        res.cookie('refresh_token', response.refresh_token, {httpOnly: true});
+        this.setCookies(res, response.access_token, response.refresh_token);
         return response
     }
 
@@ -64,11 +62,15 @@ export class AuthController {
         throw new NotImplementedException();
     }
 
-    @Get('logout/userId')
+    @Get('logout/:userId')
     async signOut(
         @Param('userId') userId: number,
-        @Res() res: Response): Promise<void> {
-        await this.authService.signOut(userId);
+        @Req() req: Request,
+        @Res({
+            passthrough: true
+        }) res: Response): Promise<void> {
+        const access_token = req.cookies.access_token || req.headers.authorization
+        await this.authService.signOut(userId,access_token);
         res.clearCookie('access_token');
         res.clearCookie('refresh_token');
         return;
@@ -79,14 +81,24 @@ export class AuthController {
         @Req() req: Request,
         @Res({
             passthrough: true
-        }) res: Response) : Promise<void> {
+        }) res: Response) : Promise<{
+            access_token: string;
+            refresh_token: string;
+        }> {
         const { access_token, refresh_token} = await this.authService.refresh({
             access_token: req.cookies.access_token || req.headers.authorization,
             refresh_token: req.cookies.refresh_token || req.headers['x-refresh-token'],
         });
-        res.cookie('access_token', access_token, { httpOnly: true });
-        res.cookie('refresh_token', refresh_token, { httpOnly: true });
-        return;
+        this.setCookies(res, access_token, refresh_token);
+        return {
+            access_token,
+            refresh_token
+        };
+    }
+
+    private setCookies(res: Response, access_token: string, refresh_token: string) {
+        res.cookie('access_token', access_token, { httpOnly: true, secure: true });
+        res.cookie('refresh_token', refresh_token, { httpOnly: true, secure: true });
     }
 
 }

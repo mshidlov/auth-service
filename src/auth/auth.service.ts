@@ -66,8 +66,13 @@ export class AuthService {
         return PrivilegeEnum[privilege.toString() as keyof typeof PrivilegeEnum];
     }
 
-    async signOut(userId:number): Promise<refresh_token> {
-        return this.userRepository.deleteRefreshToken(BigInt(userId));
+    async signOut(userId:number,access_token:string): Promise<void> {
+        const JWT = await this.authUtils.extractJWT(access_token)
+        if(!JWT || BigInt(JWT.id) !== BigInt(userId) || JWT['exp'] < Date.now() / 1000) {
+            throw new UnauthorizedException();
+        }
+        await this.userRepository.deleteRefreshToken(BigInt(userId));
+        return
     }
 
     private async getRefreshToken(user: user & { password:password, refreshToken:refresh_token}): Promise<refresh_token> {
