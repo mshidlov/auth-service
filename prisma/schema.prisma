@@ -23,20 +23,42 @@ model account {
 }
 
 model user {
-  id           BigInt         @id @default(autoincrement())
-  firstName    String?
-  lastName     String?
-  email        String         @unique
-  isVerified   Boolean        @default(false)
-  isBlocked    Boolean        @default(false)
-  isDeleted    Boolean        @default(false)
-  accountId    BigInt
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  password     password?
-  account      account        @relation(fields: [accountId], references: [id])
-  refreshToken refresh_token?
-  userRole     user_role[]
+  id               BigInt           @id @default(autoincrement())
+  firstName        String?
+  lastName         String?
+  email            String           @unique
+  isVerified       Boolean          @default(false)
+  isBlocked        Boolean          @default(false)
+  isDeleted        Boolean          @default(false)
+  accountId        BigInt
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  password         password?
+  account          account          @relation(fields: [accountId], references: [id])
+  refreshToken     refresh_token?
+  userRole         user_role[]
+  third_party_auth single_sign_on[]
+}
+
+model single_sign_on {
+  id        BigInt                @id @default(autoincrement())
+  userId    BigInt
+  origin    single_sign_on_origin
+  originId  String
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+  user      user                  @relation(fields: [userId], references: [id])
+
+  @@unique([origin, originId])
+  @@unique([origin, userId])
+}
+
+enum single_sign_on_origin {
+  GOOGLE
+  MICROSOFT
+  FACEBOOK
+  TWITTER
+  GITHUB
 }
 
 model refresh_token {
