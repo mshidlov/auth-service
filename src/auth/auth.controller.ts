@@ -9,7 +9,7 @@ import {
     Param,
     Req,
     UseGuards,
-    NotImplementedException
+    NotImplementedException, Logger
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Response, Request } from 'express';
@@ -20,13 +20,17 @@ import {SignupDto} from "./entities/signup.dto";
 import {LoginResponseDto} from "./entities/login-response.dto";
 import {LoginDto} from "./entities/login.dto";
 
-@Controller('auth')
+@Controller()
 export class AuthController {
+
+    private logger = new Logger(AuthController.name);
     constructor(private authService: AuthService) {}
 
     @HttpCode(HttpStatus.OK)
     @Post('login')
-    async signIn(@Body() loginDto: LoginDto, @Res() res: Response): Promise<LoginResponseDto> {
+    async signIn(@Body() loginDto: LoginDto, @Res({
+        passthrough: true
+    }) res: Response): Promise<LoginResponseDto> {
         const response = await this.authService.signIn(loginDto.email, loginDto.password);
         res.cookie('access_token', response.access_token, {httpOnly: true});
         res.cookie('refresh_token', response.refresh_token, {httpOnly: true});
@@ -35,13 +39,16 @@ export class AuthController {
 
     @Post('signup')
     async signUp(@Body() signupDto: SignupDto,
-                 @Res() res: Response): Promise<LoginResponseDto> {
+                 @Res({
+                     passthrough: true
+                 }) res: Response): Promise<LoginResponseDto> {
         const response = await this.authService.signUp({
             ...signupDto
         });
+        this.logger.log(`User ${response.user.id} signed up`);
         res.cookie('access_token', response.access_token, {httpOnly: true});
         res.cookie('refresh_token', response.refresh_token, {httpOnly: true});
-        return response;
+        return response
     }
 
     @Post('forgot-password')

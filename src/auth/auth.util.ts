@@ -3,9 +3,10 @@ import { validateOrReject } from 'class-validator';
 import { randomBytes, pbkdf2 } from 'crypto';
 import { compare, genSalt, hash as bcryptHash } from 'bcrypt';
 import { hash as argon2Hash, verify, argon2id } from 'argon2';
-import { Logger } from '@nestjs/common';
+import {Injectable, Logger} from '@nestjs/common';
 import {JwtService} from "@nestjs/jwt";
 import {JwtPayloadDto} from "./jwt-payload.dto";
+import {AuthOptions} from "./entities/auth-options.dto";
 
 interface PasswordHash {
     salt: string;
@@ -13,20 +14,7 @@ interface PasswordHash {
     iterations: number;
     pepperVersion: string;
 }
-
-type HashingAlgorithm = 'pbkdf2' | 'bcrypt' | 'argon2';
-type DigestAlgorithm = 'sha1' | 'sha256' | 'sha512';
-
-export interface AuthOptions {
-    saltLength: number;
-    hashLength: number;
-    iterations: number;
-    digest: DigestAlgorithm;
-    algorithm: HashingAlgorithm;
-    pepper: string;
-    pepperVersion: string;
-}
-
+@Injectable()
 export class AuthUtils {
     private readonly logger: Logger = new Logger(AuthUtils.name)
 

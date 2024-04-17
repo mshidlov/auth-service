@@ -1,12 +1,25 @@
-import {Injectable} from "@nestjs/common";
+import {Injectable, Logger} from "@nestjs/common";
 import {PrismaService} from "./prisma.service";
-import {refreshToken, password, user, privilege, account, permission, userRole, role} from "@prisma/client";
+import {
+    password,
+    user,
+    privilege,
+    account,
+    permission,
+    user_role,
+    role,
+    PrismaClient, refresh_token
+} from "@prisma/client";
+import * as runtime from "@prisma/client/runtime/library";
 
+type transaction = Omit<PrismaClient, runtime.ITXClientDenyList>
 @Injectable()
 export class UserRepository {
+
+    private readonly logger = new Logger(UserRepository.name);
     constructor(private prisma: PrismaService) {}
 
-    async findOne(email: string): Promise<user & { password:password, refreshToken:refreshToken, account:account} | undefined> {
+    async findOne(email: string): Promise<user & { password:password, refreshToken:refresh_token, account:account} | undefined> {
         return this.prisma.user.findUnique({
             where: {
                 email,
@@ -56,16 +69,20 @@ export class UserRepository {
     }
 
 
-    async createRefreshToken(userId: bigint): Promise<refreshToken> {
-        return this.prisma.refreshToken.create({
+    async createRefreshToken(userId: bigint): Promise<refresh_token> {
+        return this.prisma.refresh_token.create({
             data: {
                 userId,
-                token: Math.random().toString(36).substring(7),
+                token:this.generateRefreshToken()
             },
         });
     }
-    async getOrCreateRefreshToken(userId: bigint): Promise<refreshToken> {
-        return this.prisma.refreshToken.upsert({
+
+    private generateRefreshToken(): string {
+        return Math.random().toString(36)
+    }
+    async getOrCreateRefreshToken(userId: bigint): Promise<refresh_token> {
+        return this.prisma.refresh_token.upsert({
             where: {
                 userId,
             },
@@ -74,13 +91,13 @@ export class UserRepository {
             },
             create: {
                 userId,
-                token: Math.random().toString(36).substring(7),
+                token: this.generateRefreshToken(),
             },
         });
     }
 
-    deleteRefreshToken(userId: bigint): Promise<refreshToken> {
-        return this.prisma.refreshToken.delete({
+    deleteRefreshToken(userId: bigint): Promise<refresh_token> {
+        return this.prisma.refresh_token.delete({
             where: {
                 userId,
             },
@@ -88,9 +105,8 @@ export class UserRepository {
     }
 
 
-    createUser(email: string, salt: string, hashedPassword: string,
-               iterations: number,pepperVersion:string): Promise<user & { account:account, refreshToken:refreshToken, password:password}> {
-        return this.prisma.user.create({
+    createUser(prisma:transaction,email: string,salt: string, password: string, iterations: number, pepperVersion: string): Promise<user & { account:account, refreshToken:refresh_token, password:password}> {
+        return prisma.user.create({
             data: {
                 email,
                 account: {
@@ -99,43 +115,34 @@ export class UserRepository {
                 },
                 refreshToken: {
                     create: {
-                        token: Math.random().toString(36).substring(7),
+                        token: this.generateRefreshToken(),
+                    }
+                },
+                password: {
+                    create: {
+                        salt,
+                        password,
+                        iterations,
+                        pepperVersion:pepperVersion.toString()
                     }
                 },
             },
             include: {
                 account: true,
                 refreshToken: true,
-                password: true,
+                password: true
             }
         });
     }
 
-    async updateUserPassword(user:user, password: password): Promise<password> {
-        await this.prisma.password.updateMany({
-            where: {
-                userId: user.id
-            },
-            data: {
-                active: false
-            }
-        })
-        return this.prisma.password.update({
-            where: {
-                id: password.id,
-            },
-            data: {
-                ...password,
-                userId: user.id,
-                active: true
-            }
+    async createPassword(prisma:transaction,password: Omit<password, "id" | "createdAt" | "updatedAt">): Promise<password> {
+        return prisma.password.create({
+            data: password
         });
-
-
     }
 
-    async createAccountOwnerRole(id: bigint, accountId: bigint, permissions: permission[]): Promise<userRole & { role: role}> {
-        return this.prisma.userRole.create({
+    async createAccountOwnerRole(prisma:transaction, id: bigint, accountId: bigint, permissions: permission[]): Promise<user_role & { role: role}> {
+        return prisma.userRole.create({
             data: {
                 user: {
                     connect:{
@@ -165,7 +172,15 @@ export class UserRepository {
 
     }
 
-    getPermissions(): Promise<permission[]> {
-        return this.prisma.permission.findMany();
+    getPermissions(prisma:transaction): Promise<permission[]> {
+        this.logger.debug('Getting permissions');
+        return prisma.permission.findMany();
     }
+
+
+    async transaction<T>(fn: (connection: Omit<PrismaClient, runtime.ITXClientDenyList>) => Promise<T>): Promise<T> {
+        return this.prisma.$transaction(async (tx)=> await fn(tx));
+    }
+
+
 }

@@ -1,7 +1,7 @@
-import {Injectable, UnauthorizedException} from '@nestjs/common';
+import {Injectable, Logger, UnauthorizedException} from '@nestjs/common';
 import {AuthUtils} from "./auth.util";
 import {UserRepository} from "./user.repository";
-import {password, privilege, refreshToken, user} from "@prisma/client";
+import {password, privilege, refresh_token, user} from "@prisma/client";
 import {PermissionsDto} from "./permissions.dto";
 import {PrivilegeEnum} from "./privilege.enum";
 import {JwtPayloadDto} from "./jwt-payload.dto";
@@ -10,6 +10,8 @@ import {LoginDto} from "./entities/login.dto";
 
 @Injectable()
 export class AuthService {
+
+    private logger = new Logger(AuthService.name);
     constructor(private userRepository: UserRepository,
                 private authUtils: AuthUtils) {}
 
@@ -19,7 +21,7 @@ export class AuthService {
             throw new UnauthorizedException("Invalid login credentials provided.");
         }
 
-        if (!await this.authUtils.isPasswordCorrect(user.password.password, user.password.salt, user.password.saltIterations, password)) {
+        if (!await this.authUtils.isPasswordCorrect(user.password.password, user.password.salt, user.password.iterations, password)) {
             throw new UnauthorizedException("Invalid login credentials provided.");
         }
 
@@ -64,11 +66,11 @@ export class AuthService {
         return PrivilegeEnum[privilege.toString() as keyof typeof PrivilegeEnum];
     }
 
-    async signOut(userId:number): Promise<refreshToken> {
+    async signOut(userId:number): Promise<refresh_token> {
         return this.userRepository.deleteRefreshToken(BigInt(userId));
     }
 
-    private async getRefreshToken(user: user & { password:password, refreshToken:refreshToken}): Promise<refreshToken> {
+    private async getRefreshToken(user: user & { password:password, refreshToken:refresh_token}): Promise<refresh_token> {
         if (!user.refreshToken) {
             return this.userRepository.createRefreshToken(user.id);
         }
@@ -85,10 +87,18 @@ export class AuthService {
 
     async signUp(loginDto: LoginDto): Promise<LoginResponseDto> {
         const {salt, hash, iterations, pepperVersion} = await this.authUtils.hashPassword(loginDto.password)
-        const permissions = await this.userRepository.getPermissions()
-        const user = await this.userRepository.createUser(loginDto.email, salt, hash, iterations, pepperVersion);
-        await this.userRepository.updateUserPassword(user, user.password);
-        const userRole = await this.userRepository.createAccountOwnerRole(user.id, user.accountId, permissions);
+        const {user,userRole,permissions} = await  this.userRepository.transaction(async (connection) => {
+            const user = await this.userRepository.createUser(connection,loginDto.email,salt, hash, iterations, pepperVersion);
+            const permissions = await this.userRepository.getPermissions(connection)
+            const userRole = await this.userRepository.createAccountOwnerRole(connection,user.id, user.accountId, permissions);
+            return {
+                user,
+                permissions,
+                userRole
+            }
+        })
+
+        this.logger.log(`Created user with id ${user.id}`);
         return {
             access_token: this.authUtils.getUserJWT({
                 id: Number(user.id),
