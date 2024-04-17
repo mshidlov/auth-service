@@ -15,7 +15,7 @@ datasource db {
 
 model account {
   id        BigInt   @id @default(autoincrement())
-  name      String
+  name      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   user      user[]
@@ -23,18 +23,21 @@ model account {
 }
 
 model user {
-  id             BigInt        @id @default(autoincrement())
-  name           String
-  email          String        @unique
-  passwordId     BigInt
-  refreshTokenId BigInt
-  accountId      BigInt
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  password       password      @relation(fields: [passwordId], references: [id])
-  account        account       @relation(fields: [accountId], references: [id])
-  refreshToken   refreshToken?
-  userRole       userRole[]
+  id           BigInt        @id @default(autoincrement())
+  firstName    String?
+  lastName     String?
+  email        String        @unique
+  isVerified   Boolean       @default(false)
+  isBlocked    Boolean       @default(false)
+  isDeleted    Boolean       @default(false)
+  passwordId   BigInt?
+  accountId    BigInt
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  password     password?     @relation(fields: [passwordId], references: [id])
+  account      account       @relation(fields: [accountId], references: [id])
+  refreshToken refreshToken?
+  userRole     userRole[]
 }
 
 model refreshToken {
@@ -48,28 +51,26 @@ model refreshToken {
 
 model password {
   id             BigInt   @id @default(autoincrement())
-  usersId        BigInt
+  userId         BigInt
   salt           String
   saltIterations Int
   password       String
-  paperVersion   String
-  active         Boolean
+  paperVersion   String   @default("1")
+  active         Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   user           user[]
-
-  @@index([usersId])
 }
 
 model role {
-  id              BigInt            @id @default(autoincrement())
+  id              BigInt           @id @default(autoincrement())
   accountId       BigInt
   name            String
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  account         account           @relation(fields: [accountId], references: [id])
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  account         account          @relation(fields: [accountId], references: [id])
   userRole        userRole[]
-  rolePermissions rolePermissions[]
+  rolePermissions rolePermission[]
 }
 
 model userRole {
@@ -82,24 +83,24 @@ model userRole {
   role      role     @relation(fields: [roleId], references: [id])
 }
 
-model permissions {
-  id              BigInt            @id @default(autoincrement())
+model permission {
+  id              BigInt           @id @default(autoincrement())
   name            String
   resource        String
   privilege       privilege
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  rolePermissions rolePermissions[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  rolePermissions rolePermission[]
 }
 
-model rolePermissions {
-  id           BigInt      @id @default(autoincrement())
+model rolePermission {
+  id           BigInt     @id @default(autoincrement())
   roleId       BigInt
   permissionId BigInt
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  role         role        @relation(fields: [roleId], references: [id])
-  permissions  permissions @relation(fields: [permissionId], references: [id])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  role         role       @relation(fields: [roleId], references: [id])
+  permission   permission @relation(fields: [permissionId], references: [id])
 }
 
 enum privilege {

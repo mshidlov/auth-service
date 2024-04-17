@@ -5,16 +5,15 @@ import {password, privilege, refreshToken, user} from "@prisma/client";
 import {PermissionsDto} from "./permissions.dto";
 import {PrivilegeEnum} from "./privilege.enum";
 import {JwtPayloadDto} from "./jwt-payload.dto";
+import {LoginResponseDto} from "./entities/login-response.dto";
+import {LoginDto} from "./entities/login.dto";
 
 @Injectable()
 export class AuthService {
     constructor(private userRepository: UserRepository,
                 private authUtils: AuthUtils) {}
 
-    async signIn(username: string, password: string): Promise<{
-        access_token: string,
-        refresh_token: string,
-    }> {
+    async signIn(username: string, password: string): Promise<LoginResponseDto> {
         const user = await this.userRepository.findOne(username);
         if (!user) {
             throw new UnauthorizedException("Invalid login credentials provided.");
@@ -26,7 +25,7 @@ export class AuthService {
 
         const refreshToken = await this.getRefreshToken(user);
         const permissionsAndRoles = await this.userRepository.getUserRolesAndPermissions(user.id);
-        const JWT:string = this.authUtils.getUserJWT({
+        const JWT: string = this.authUtils.getUserJWT({
             id: Number(user.id),
             account: Number(user.accountId),
             roles: permissionsAndRoles.roles,
@@ -35,6 +34,17 @@ export class AuthService {
         return {
             access_token: JWT,
             refresh_token: refreshToken.token,
+            user: {
+                id: Number(user.id),
+                account: {
+                    id: Number(user.accountId),
+                    name: user.account.name
+                },
+                email: user.email,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                roles: permissionsAndRoles.roles,
+            }
         };
     }
 
@@ -71,5 +81,33 @@ export class AuthService {
             access_token: this.authUtils.getUserJWT(tokenPayLoad),
             refresh_token: param.refresh_token,
         }
+    }
+
+    async signUp(loginDto: LoginDto): Promise<LoginResponseDto> {
+        const {salt, hash, iterations, pepperVersion} = await this.authUtils.hashPassword(loginDto.password)
+        const permissions = await this.userRepository.getPermissions()
+        const user = await this.userRepository.createUser(loginDto.email, salt, hash, iterations, pepperVersion);
+        await this.userRepository.updateUserPassword(user, user.password);
+        const userRole = await this.userRepository.createAccountOwnerRole(user.id, user.accountId, permissions);
+        return {
+            access_token: this.authUtils.getUserJWT({
+                id: Number(user.id),
+                account: Number(user.accountId),
+                roles: [userRole.role.name],
+                permissions: this.convertPermissionsToPermissionsDto(permissions)
+            }),
+            refresh_token: user.refreshToken.token,
+            user: {
+                id: Number(user.id),
+                account: {
+                    id: Number(user.accountId),
+                    name: user.account.name
+                },
+                email: user.email,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                roles: [userRole.role.name],
+            }
+        };
     }
 }

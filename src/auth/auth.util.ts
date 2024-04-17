@@ -11,6 +11,7 @@ interface PasswordHash {
     salt: string;
     hash: string;
     iterations: number;
+    pepperVersion: string;
 }
 
 type HashingAlgorithm = 'pbkdf2' | 'bcrypt' | 'argon2';
@@ -23,6 +24,7 @@ export interface AuthOptions {
     digest: DigestAlgorithm;
     algorithm: HashingAlgorithm;
     pepper: string;
+    pepperVersion: string;
 }
 
 export class AuthUtils {
@@ -72,7 +74,8 @@ export class AuthUtils {
                 resolve({
                     salt: salt,
                     hash: derivedKey.toString('hex'),
-                    iterations: this.options.iterations
+                    iterations: this.options.iterations,
+                    pepperVersion: this.options.pepperVersion
                 });
             });
         });
@@ -85,7 +88,8 @@ export class AuthUtils {
         return {
             salt: hash,
             hash: hash,
-            iterations: this.options.iterations
+            iterations: this.options.iterations,
+            pepperVersion: this.options.pepperVersion
         };
     }
 
@@ -95,7 +99,8 @@ export class AuthUtils {
         return {
             salt: '',
             hash: hash,
-            iterations: this.options.iterations
+            iterations: this.options.iterations,
+            pepperVersion: this.options.pepperVersion
         };
     }
 
