@@ -35,6 +35,5 @@ import {AuthOptions} from "./entities/auth-options.dto";
         }
     },AuthUtils,PrismaService, UserRepository, AuthService],
     controllers: [AuthController],
-    exports: [AuthService],
 })
 export class AuthModule {}
