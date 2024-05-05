@@ -24,9 +24,9 @@ model account {
 
 model user {
   id               BigInt           @id @default(autoincrement())
+  username         String           @unique
   firstName        String?
   lastName         String?
-  email            String           @unique
   isVerified       Boolean          @default(false)
   isBlocked        Boolean          @default(false)
   isDeleted        Boolean          @default(false)
@@ -38,6 +38,20 @@ model user {
   refreshToken     refresh_token?
   userRole         user_role[]
   third_party_auth single_sign_on[]
+  user_email       user_email[]
+}
+
+model user_email {
+  id         BigInt   @id @default(autoincrement())
+  userId     BigInt
+  email      String
+  isVerified Boolean  @default(false)
+  isPrimary  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       user     @relation(fields: [userId], references: [id])
+
+  @@unique([email])
 }
 
 model single_sign_on {

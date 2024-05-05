@@ -42,7 +42,7 @@ export class AuthService {
                     id: Number(user.accountId),
                     name: user.account.name
                 },
-                email: user.email,
+                username: user.username,
                 firstName: user.firstName,
                 lastName: user.lastName,
                 roles: permissionsAndRoles.roles,
@@ -127,7 +127,7 @@ export class AuthService {
                     id: Number(user.accountId),
                     name: user.account.name
                 },
-                email: user.email,
+                username: user.username,
                 firstName: user.firstName,
                 lastName: user.lastName,
                 roles: [userRole.role.name],

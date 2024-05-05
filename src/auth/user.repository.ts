@@ -19,10 +19,10 @@ export class UserRepository {
     private readonly logger = new Logger(UserRepository.name);
     constructor(private prisma: PrismaService) {}
 
-    async findOne(email: string): Promise<user & { password:password, refreshToken:refresh_token, account:account} | undefined> {
+    async findOne(username: string): Promise<user & { password:password, refreshToken:refresh_token, account:account} | undefined> {
         return this.prisma.user.findUnique({
             where: {
-                email,
+                username,
             },
             include: {
                 password: true,
@@ -108,7 +108,13 @@ export class UserRepository {
     createUser(prisma:transaction,email: string,salt: string, password: string, iterations: number, pepperVersion: string): Promise<user & { account:account, refreshToken:refresh_token, password:password}> {
         return prisma.user.create({
             data: {
-                email,
+                username:email,
+                user_email:{
+                    create:[{
+                        email,
+                        isPrimary:true
+                    }]
+                },
                 account: {
                     create: {
                     }

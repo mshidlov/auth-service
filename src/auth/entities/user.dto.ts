@@ -21,7 +21,7 @@ export class UserDto{
         type: String,
         example: "example@example.com"
     })
-    email: string;
+    username: string;
 
     @ApiPropertyOptional({
         type: String,
