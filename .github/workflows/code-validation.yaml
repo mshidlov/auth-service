@@ -1,0 +1,13 @@
+name: Code Validation
+
+on:
+  workflow_dispatch:
+jobs:
+  validate-code:
+    name: Validate Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Build
+        run: npm run build
+      - name: Run Test
+        run: npm run test
