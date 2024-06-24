@@ -73,6 +73,14 @@
       "json",
       "ts"
     ],
+    "reporters": [
+      "default",
+      ["jest-html-reporters", {
+        "publicPath": "./html-report",
+        "filename": "index.html",
+        "openReport": true
+      }]
+    ],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {

@@ -5,15 +5,17 @@ import {password, privilege, refresh_token, user} from "@prisma/client";
 import {PermissionsDto} from "./permissions.dto";
 import {PrivilegeEnum} from "./privilege.enum";
 import {JwtPayloadDto} from "./jwt-payload.dto";
-import {LoginResponseDto} from "./entities/login-response.dto";
-import {LoginDto} from "./entities/login.dto";
+import {LoginResponseDto} from "./entities";
+import {LoginDto} from "./entities";
+import {JwtService} from "@nestjs/jwt";
 
 @Injectable()
 export class AuthService {
 
     private logger = new Logger(AuthService.name);
     constructor(private userRepository: UserRepository,
-                private authUtils: AuthUtils) {}
+                private authUtils: AuthUtils,
+                private jwtService: JwtService) {}
 
     async signIn(username: string, password: string): Promise<LoginResponseDto> {
         const user = await this.userRepository.findOne(username);
@@ -27,7 +29,7 @@ export class AuthService {
 
         const refreshToken = await this.getRefreshToken(user);
         const permissionsAndRoles = await this.userRepository.getUserRolesAndPermissions(user.id);
-        const JWT: string = this.authUtils.getUserJWT({
+        const JWT: string = this.getUserJWT({
             id: Number(user.id),
             account: Number(user.accountId),
             roles: permissionsAndRoles.roles,
@@ -67,7 +69,7 @@ export class AuthService {
     }
 
     async signOut(userId:number,access_token:string): Promise<void> {
-        const JWT = await this.authUtils.extractJWT(access_token)
+        const JWT = await this.extractJWT(access_token)
         if(!JWT || BigInt(JWT.id) !== BigInt(userId) || JWT['exp'] < Date.now() / 1000) {
             throw new UnauthorizedException();
         }
@@ -83,13 +85,13 @@ export class AuthService {
     }
 
     async refresh(param: { access_token: any; refresh_token: any }): Promise<{ access_token: string; refresh_token: string; }> {
-        const tokenPayLoad: JwtPayloadDto = await this.authUtils.extractJWT(param.access_token);
+        const tokenPayLoad: JwtPayloadDto = await this.extractJWT(param.access_token);
         const refreshToken = await this.userRepository.getRefreshToken(tokenPayLoad.id,param.refresh_token);
         if(!refreshToken || refreshToken.userId !== BigInt(tokenPayLoad.id)) {
             throw new UnauthorizedException("Invalid refresh token provided.");
         }
         return {
-            access_token: this.authUtils.getUserJWT({
+            access_token: this.getUserJWT({
                 id: tokenPayLoad.id,
                 account: tokenPayLoad.account,
                 roles: tokenPayLoad.roles,
@@ -114,7 +116,7 @@ export class AuthService {
 
         this.logger.log(`Created user with id ${user.id}`);
         return {
-            access_token: this.authUtils.getUserJWT({
+            access_token: this.getUserJWT({
                 id: Number(user.id),
                 account: Number(user.accountId),
                 roles: [userRole.role.name],
@@ -133,5 +135,12 @@ export class AuthService {
                 roles: [userRole.role.name],
             }
         };
+    }
+    getUserJWT(jwtPayloadDto: JwtPayloadDto): string {
+        return this.jwtService.sign(jwtPayloadDto);
+    }
+
+    async extractJWT(access_token: string): Promise<JwtPayloadDto> {
+        return this.jwtService.decode(access_token)
     }
 }
