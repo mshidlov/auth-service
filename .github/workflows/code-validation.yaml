@@ -7,11 +7,21 @@ jobs:
     name: Validate Code
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/setup-node@v2
+        with:
+          node-version: 20.x
+
       - uses: actions/checkout@v3
+
+      - name: npm Install
+        run: npm ci
+
       - name: Run Build
         run: npm run build
+
       - name: Run Test
         run: npm run test
+
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
