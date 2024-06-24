@@ -2,6 +2,8 @@ name: Code Validation
 
 on:
   workflow_dispatch:
+  pull_request:
+
 jobs:
   validate-code:
     name: Validate Code
@@ -22,8 +24,8 @@ jobs:
       - name: Run Test
         run: npm run test
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./html-report
+      - name: Run Lint
+        run: npm run lint
+
+      - name: Run Format
+        run: npm run format
