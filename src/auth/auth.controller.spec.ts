@@ -33,7 +33,7 @@ describe('AuthController - login', () => {
             user: {
                 id: 1,
                 account: { id: 1, name: 'My Account' },
-                email: 'cdc',
+                username: 'cdc',
                 firstName: 'John',
                 lastName: 'Doe',
                 roles: ['admin', 'user'],
