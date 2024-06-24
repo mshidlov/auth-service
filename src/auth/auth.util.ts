@@ -1,12 +1,10 @@
-import { plainToInstance } from 'class-transformer';
-import { validateOrReject } from 'class-validator';
 import { randomBytes, pbkdf2 } from 'crypto';
 import { compare, genSalt, hash as bcryptHash } from 'bcrypt';
 import { hash as argon2Hash, verify, argon2id } from 'argon2';
 import {Injectable, Logger} from '@nestjs/common';
 import {JwtService} from "@nestjs/jwt";
 import {JwtPayloadDto} from "./jwt-payload.dto";
-import {AuthOptions} from "./entities/auth-options.dto";
+import {AuthOptions} from "./entities";
 
 interface PasswordHash {
     salt: string;
@@ -18,8 +16,7 @@ interface PasswordHash {
 export class AuthUtils {
     private readonly logger: Logger = new Logger(AuthUtils.name)
 
-    constructor(private options: AuthOptions,
-                private jwtService: JwtService) {
+    constructor(private options: AuthOptions) {
     }
 
     async hashPassword(password: string): Promise<PasswordHash> {
@@ -112,11 +109,4 @@ export class AuthUtils {
         return await verify(savedHash, passwordAttempt);
     }
 
-    getUserJWT(jwtPayloadDto: JwtPayloadDto): string {
-        return this.jwtService.sign(jwtPayloadDto);
-    }
-
-    async extractJWT(access_token: string): Promise<JwtPayloadDto> {
-        return this.jwtService.decode(access_token)
-    }
 }
