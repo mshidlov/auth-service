@@ -1,94 +1,126 @@
-import {AuthUtils} from './auth.util';
-import {AuthOptions} from "./entities";
+import { AuthUtils } from './auth.util';
+import { AuthOptions } from './entities';
 // import {JwtService} from "@nestjs/jwt";
-jest.mock('@nestjs/jwt')
+jest.mock('@nestjs/jwt');
 function createAuthUtils(options: AuthOptions) {
-    return new AuthUtils(options);
+  return new AuthUtils(options);
 }
 describe('AuthUtils', () => {
-    let options: AuthOptions;
-        
-    const password = 'password';
-    
-    beforeEach(() => {
-        // JwtService.mockClear();
-        options = { saltLength: 10, hashLength: 64, iterations: 10000, digest: 'sha512', algorithm: 'pbkdf2', pepper: 'pepper', pepperVersion: '1' };
-    });
+  let options: AuthOptions;
 
-    it('should hash password with PBKDF2', async () => {
-        options.algorithm = 'pbkdf2';
-        const authUtils = createAuthUtils(options)
-        const passwordHash = await authUtils.hashPassword(password);
+  const password = 'password';
 
-        expect(passwordHash).toHaveProperty('salt');
-        expect(passwordHash).toHaveProperty('hash');
-        expect(passwordHash).toHaveProperty('iterations');
-    });
+  beforeEach(() => {
+    // JwtService.mockClear();
+    options = {
+      saltLength: 10,
+      hashLength: 64,
+      iterations: 10000,
+      digest: 'sha512',
+      algorithm: 'pbkdf2',
+      pepper: 'pepper',
+      pepperVersion: '1',
+    };
+  });
 
-    it('should hash password with bcrypt', async () => {
-        options.algorithm = 'bcrypt';
-        const authUtils = new AuthUtils(options);
-        const passwordHash = await authUtils.hashPassword(password);
+  it('should hash password with PBKDF2', async () => {
+    options.algorithm = 'pbkdf2';
+    const authUtils = createAuthUtils(options);
+    const passwordHash = await authUtils.hashPassword(password);
 
-        expect(passwordHash).toHaveProperty('salt');
-        expect(passwordHash).toHaveProperty('hash');
-        expect(passwordHash).toHaveProperty('iterations');
-    });
+    expect(passwordHash).toHaveProperty('salt');
+    expect(passwordHash).toHaveProperty('hash');
+    expect(passwordHash).toHaveProperty('iterations');
+  });
 
-    it('should hash password with argon2', async () => {
-        options.algorithm = 'argon2';
-        const authUtils = new AuthUtils(options);
-        const passwordHash = await authUtils.hashPassword(password);
+  it('should hash password with bcrypt', async () => {
+    options.algorithm = 'bcrypt';
+    const authUtils = new AuthUtils(options);
+    const passwordHash = await authUtils.hashPassword(password);
 
-        expect(passwordHash).toHaveProperty('salt');
-        expect(passwordHash).toHaveProperty('hash');
-        expect(passwordHash).toHaveProperty('iterations');
-    });
+    expect(passwordHash).toHaveProperty('salt');
+    expect(passwordHash).toHaveProperty('hash');
+    expect(passwordHash).toHaveProperty('iterations');
+  });
 
-    it('should check password correctly with PBKDF2', async () => {
-        options.algorithm = 'pbkdf2';
-        const authUtils = new AuthUtils(options);
-        const passwordHash = await authUtils.hashPassword(password);
-        const isCorrect = await authUtils.isPasswordCorrect(passwordHash.hash, passwordHash.salt, passwordHash.iterations, password);
+  it('should hash password with argon2', async () => {
+    options.algorithm = 'argon2';
+    const authUtils = new AuthUtils(options);
+    const passwordHash = await authUtils.hashPassword(password);
 
-        expect(isCorrect).toBe(true);
-    });
+    expect(passwordHash).toHaveProperty('salt');
+    expect(passwordHash).toHaveProperty('hash');
+    expect(passwordHash).toHaveProperty('iterations');
+  });
 
-    it('should check password correctly with bcrypt', async () => {
-        options.algorithm = 'bcrypt';
-        const authUtils = new AuthUtils(options);
-        const passwordHash = await authUtils.hashPassword(password);
-        const isCorrect = await authUtils.isPasswordCorrect(passwordHash.hash, passwordHash.salt, passwordHash.iterations, password);
+  it('should check password correctly with PBKDF2', async () => {
+    options.algorithm = 'pbkdf2';
+    const authUtils = new AuthUtils(options);
+    const passwordHash = await authUtils.hashPassword(password);
+    const isCorrect = await authUtils.isPasswordCorrect(
+      passwordHash.hash,
+      passwordHash.salt,
+      passwordHash.iterations,
+      password,
+    );
 
-        expect(isCorrect).toBe(true);
-    });
+    expect(isCorrect).toBe(true);
+  });
 
-    it('should check password correctly with argon2', async () => {
-        options.algorithm = 'argon2';
-        const authUtils = new AuthUtils(options);
-        const passwordHash = await authUtils.hashPassword(password);
-        const isCorrect = await authUtils.isPasswordCorrect(passwordHash.hash, passwordHash.salt, passwordHash.iterations, password);
+  it('should check password correctly with bcrypt', async () => {
+    options.algorithm = 'bcrypt';
+    const authUtils = new AuthUtils(options);
+    const passwordHash = await authUtils.hashPassword(password);
+    const isCorrect = await authUtils.isPasswordCorrect(
+      passwordHash.hash,
+      passwordHash.salt,
+      passwordHash.iterations,
+      password,
+    );
 
-        expect(isCorrect).toBe(true);
-    });
+    expect(isCorrect).toBe(true);
+  });
 
-    it('should check password incorrectly', async () => {
-        const authUtils = new AuthUtils(options);
-        const passwordHash = await authUtils.hashPassword(password);
-        const isCorrect = await authUtils.isPasswordCorrect(passwordHash.hash, passwordHash.salt, passwordHash.iterations, 'wrongpassword');
+  it('should check password correctly with argon2', async () => {
+    options.algorithm = 'argon2';
+    const authUtils = new AuthUtils(options);
+    const passwordHash = await authUtils.hashPassword(password);
+    const isCorrect = await authUtils.isPasswordCorrect(
+      passwordHash.hash,
+      passwordHash.salt,
+      passwordHash.iterations,
+      password,
+    );
 
-        expect(isCorrect).toBe(false);
-    });
+    expect(isCorrect).toBe(true);
+  });
 
-    it('should throw error for unsupported algorithm in hashPassword', async () => {
-        options.algorithm = undefined;
-        const authUtils = new AuthUtils(options);
-        await expect(authUtils.hashPassword(password)).rejects.toThrow('Unsupported algorithm: undefined');
-    });
+  it('should check password incorrectly', async () => {
+    const authUtils = new AuthUtils(options);
+    const passwordHash = await authUtils.hashPassword(password);
+    const isCorrect = await authUtils.isPasswordCorrect(
+      passwordHash.hash,
+      passwordHash.salt,
+      passwordHash.iterations,
+      'wrongpassword',
+    );
 
-    it('should throw error for unsupported algorithm in isPasswordCorrect', async () => {
-        options.algorithm = undefined;
-        const authUtils = new AuthUtils(options);
-        await expect(authUtils.isPasswordCorrect('hash', 'salt', 10000, password)).rejects.toThrow('Unsupported algorithm: undefined');
-    });
+    expect(isCorrect).toBe(false);
+  });
+
+  it('should throw error for unsupported algorithm in hashPassword', async () => {
+    options.algorithm = undefined;
+    const authUtils = new AuthUtils(options);
+    await expect(authUtils.hashPassword(password)).rejects.toThrow(
+      'Unsupported algorithm: undefined',
+    );
+  });
+
+  it('should throw error for unsupported algorithm in isPasswordCorrect', async () => {
+    options.algorithm = undefined;
+    const authUtils = new AuthUtils(options);
+    await expect(
+      authUtils.isPasswordCorrect('hash', 'salt', 10000, password),
+    ).rejects.toThrow('Unsupported algorithm: undefined');
+  });
 });

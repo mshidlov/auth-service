@@ -1,20 +1,20 @@
-import {PermissionsDto} from "./permissions.dto";
-import {IsArray, IsNumber, IsString, ValidateNested} from "class-validator";
-import {Type } from "class-transformer";
+import { PermissionsDto } from './permissions.dto';
+import { IsArray, IsNumber, IsString, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 
-export class JwtPayloadDto{
-    @IsNumber()
-    id: number
+export class JwtPayloadDto {
+  @IsNumber()
+  id: number;
 
-    @IsNumber()
-    account: number
+  @IsNumber()
+  account: number;
 
-    @IsArray()
-    @IsString({each: true})
-    roles: string[]
+  @IsArray()
+  @IsString({ each: true })
+  roles: string[];
 
-    @IsArray()
-    @Type(() => PermissionsDto)
-    @ValidateNested({each: true})
-    permissions: PermissionsDto[]
+  @IsArray()
+  @Type(() => PermissionsDto)
+  @ValidateNested({ each: true })
+  permissions: PermissionsDto[];
 }
