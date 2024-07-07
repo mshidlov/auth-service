@@ -141,36 +141,19 @@ export class AuthService {
 
     /**
      * TODO:
-     *  1. manage signup transaction from repository
+     *  1.
      *  2. generate email confirmation link
      *  3. send validation email
      *  4. update login to validate active account (email validated)
      */
 
-    const { user, userRole, permissions } =
-      await this.userRepository.transaction(async (connection) => {
-        const user = await this.userRepository.createUser(
-          connection,
+    const { user, userRole, permissions } = await this.userRepository.createAccount(
           loginDto.email,
           salt,
           hash,
           iterations,
-          pepperVersion,
-        );
-        const permissions =
-          await this.userRepository.getPermissions(connection);
-        const userRole = await this.userRepository.createAccountOwnerRole(
-          connection,
-          user.id,
-          user.accountId,
-          permissions,
-        );
-        return {
-          user,
-          permissions,
-          userRole,
-        };
-      });
+          pepperVersion
+      );
 
     this.logger.log(`Created user with id ${user.id}`);
     return {

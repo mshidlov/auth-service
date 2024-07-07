@@ -113,15 +113,15 @@ export class UserRepository {
     });
   }
 
-  createUser(
-    prisma: transaction,
-    email: string,
-    salt: string,
-    password: string,
-    iterations: number,
-    pepperVersion: string,
+  private createUser(
+      prisma: transaction,
+      email: string,
+      salt: string,
+      password: string,
+      iterations: number,
+      pepperVersion: string,
   ): Promise<
-    user & { account: account; refreshToken: refresh_token; password: password }
+      user & { account: account; refreshToken: refresh_token; password: password }
   > {
     return prisma.user.create({
       data: {
@@ -159,6 +159,40 @@ export class UserRepository {
     });
   }
 
+  createAccount(
+      email: string,
+      salt: string,
+      password: string,
+      iterations: number,
+      pepperVersion: string,
+  ): Promise<{
+    user: user & {
+      account: account;
+      refreshToken: refresh_token;
+      password: password
+    },
+    permissions:permission[],
+    userRole:user_role & { role: role },
+  }> {
+    return this.prisma.$transaction(async prisma => {
+      const user = await this.createUser(prisma, email, salt, password, iterations, pepperVersion)
+      const permissions =
+          await this.getPermissions(prisma);
+      const userRole = await this.createAccountOwnerRole(
+          prisma,
+          user.id,
+          user.accountId,
+          permissions,
+      );
+      return {
+        user,
+        permissions,
+        userRole,
+      };
+
+    })
+  }
+
   async createPassword(
     prisma: transaction,
     password: Omit<password, 'id' | 'createdAt' | 'updatedAt'>,
@@ -168,7 +202,7 @@ export class UserRepository {
     });
   }
 
-  async createAccountOwnerRole(
+  private async createAccountOwnerRole(
     prisma: transaction,
     id: bigint,
     accountId: bigint,
@@ -203,7 +237,7 @@ export class UserRepository {
     });
   }
 
-  getPermissions(prisma: transaction): Promise<permission[]> {
+  private getPermissions(prisma: transaction): Promise<permission[]> {
     this.logger.debug('Getting permissions');
     return prisma.permission.findMany();
   }

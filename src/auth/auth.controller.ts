@@ -17,9 +17,9 @@ import { Response, Request } from 'express';
 import { JwtGuard } from './jwt.guard';
 import { JwtPayload } from './jwt-payload.decorator';
 import { JwtPayloadDto } from './jwt-payload.dto';
-import { SignupDto } from './entities/signup.dto';
-import { LoginResponseDto } from './entities/login-response.dto';
-import { LoginDto } from './entities/login.dto';
+import { SignupDto } from './entities';
+import { LoginResponseDto } from './entities';
+import { LoginDto } from './entities';
 
 @Controller()
 export class AuthController {
