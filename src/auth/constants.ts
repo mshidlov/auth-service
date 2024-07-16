@@ -2,3 +2,9 @@ export const jwtConstants = {
   secret:
     'DO NOT USE THIS VALUE. INSTEAD, CREATE A COMPLEX SECRET AND KEEP IT SAFE OUTSIDE OF THE SOURCE CODE.',
 };
+
+export const serviceTokensConstants= {
+  JWT_SERVICE_TOKEN: "JWT_SERVICE_TOKEN",
+  EMAILS_JWT_SERVICE_TOKEN: "EMAILS_JWT_SERVICE_TOKEN"
+}
+

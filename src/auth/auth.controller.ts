@@ -10,7 +10,7 @@ import {
   Req,
   UseGuards,
   NotImplementedException,
-  Logger,
+  Logger, ForbiddenException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Response, Request } from 'express';
@@ -93,14 +93,16 @@ export class AuthController {
   @Get('logout/:userId')
   async signOut(
     @Param('userId') userId: number,
-    @Req() req: Request,
+    @JwtPayload() jwt: JwtPayloadDto,
     @Res({
       passthrough: true,
     })
     res: Response,
   ): Promise<void> {
-    const access_token = req.cookies.access_token || req.headers.authorization;
-    await this.authService.signOut(userId, access_token);
+    if(userId != jwt.id){
+      throw new ForbiddenException("Action is not allowed")
+    }
+    await this.authService.signOut(userId);
     res.clearCookie('access_token');
     res.clearCookie('refresh_token');
     return;

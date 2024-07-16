@@ -2,13 +2,14 @@ import { Module } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
-import { jwtConstants } from './constants';
+import {jwtConstants, serviceTokensConstants} from './constants';
 import { JwtStrategy } from './jwt.strategy';
 import { UserRepository } from './user.repository';
 import { PrismaService } from './prisma.service';
 import { PassportModule } from '@nestjs/passport';
 import { AuthUtils } from './auth.util';
-import { AuthOptions } from './entities/auth-options.dto';
+import { AuthOptions } from './entities';
+import {TokenService} from "./token.service";
 
 @Module({
   imports: [
@@ -38,6 +39,23 @@ import { AuthOptions } from './entities/auth-options.dto';
     AuthUtils,
     PrismaService,
     UserRepository,
+    {
+      provide: serviceTokensConstants.JWT_SERVICE_TOKEN,
+      useFactory: () => {
+        new TokenService({
+          expiresIn: "60s",
+          secretKey: ""
+        })
+      }
+    }, {
+      provide: serviceTokensConstants.EMAILS_JWT_SERVICE_TOKEN,
+      useFactory: () => {
+        new TokenService({
+          expiresIn: "60s",
+          secretKey: ""
+        })
+      }
+    },
     AuthService,
   ],
   controllers: [AuthController],
