@@ -36,7 +36,7 @@ export class AuthController {
     res: Response,
   ): Promise<LoginResponseDto> {
     const response = await this.authService.signIn(
-      loginDto.email,
+      loginDto.username,
       loginDto.password,
     );
     this.setCookies(res, response.access_token, response.refresh_token);
@@ -59,6 +59,21 @@ export class AuthController {
     return response;
   }
 
+  @Post('verify/email/:JWT')
+  async verifyEmail(
+    @Param('JWT') JWT: string,
+    @Res({
+      passthrough: true,
+    })
+    res: Response,
+  ): Promise<void> {
+    res.status(HttpStatus.FOUND);
+    if (await this.authService.verifyEmail(JWT)) {
+      res.location('http://localhost:8080/verify/email/success');
+    } else {
+      res.location('http://localhost:8080/verify/email/fail');
+    }
+  }
   @Post('forgot-password')
   async forgotPassword(
     @Body() forgotPassword: { email: string }, // eslint-disable-line

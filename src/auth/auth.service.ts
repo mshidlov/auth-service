@@ -1,30 +1,58 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthUtils } from './auth.util';
 import { UserRepository } from './user.repository';
-import { password, privilege, refresh_token, user } from '@prisma/client';
+import {
+  password,
+  privilege,
+  refresh_token,
+  user,
+  user_email,
+} from '@prisma/client';
 import { PermissionsDto } from './permissions.dto';
 import { PrivilegeEnum } from './privilege.enum';
 import { JwtPayloadDto } from './jwt-payload.dto';
-import { LoginResponseDto } from './entities';
+import { LoginResponseDto, UserDto } from './entities';
 import { LoginDto } from './entities';
 import { JwtService } from '@nestjs/jwt';
+import * as jwt from 'jsonwebtoken';
+
+import { EmailService } from './email.service';
 
 @Injectable()
 export class AuthService {
   private logger = new Logger(AuthService.name);
+
+  private configurations: {
+    emails: {
+      verification_required: boolean;
+    };
+  } = {
+    emails: {
+      verification_required: true,
+    },
+  };
   constructor(
     private userRepository: UserRepository,
     private authUtils: AuthUtils,
     private jwtService: JwtService,
+    private emailService: EmailService,
   ) {}
 
   async signIn(username: string, password: string): Promise<LoginResponseDto> {
     const user = await this.userRepository.findOne(username);
-    if (!user) {
-      throw new UnauthorizedException('Invalid login credentials provided.');
+    if (this.configurations.emails.verification_required && !user.isVerified) {
+      throw new ForbiddenException('Please validate your email');
     }
 
     if (
+      !user ||
+      user.isBlocked ||
+      user.isDeleted ||
       !(await this.authUtils.isPasswordCorrect(
         user.password.password,
         user.password.salt,
@@ -111,8 +139,8 @@ export class AuthService {
   }
 
   async refresh(param: {
-    access_token: any;
-    refresh_token: any;
+    access_token: string;
+    refresh_token: string;
   }): Promise<{ access_token: string; refresh_token: string }> {
     const tokenPayLoad: JwtPayloadDto = await this.extractJWT(
       param.access_token,
@@ -121,9 +149,16 @@ export class AuthService {
       tokenPayLoad.id,
       param.refresh_token,
     );
-    if (!refreshToken || refreshToken.userId !== BigInt(tokenPayLoad.id)) {
+    if (
+      !refreshToken ||
+      refreshToken.userId !== BigInt(tokenPayLoad.id) ||
+        (this.configurations.emails.verification_required && refreshToken.user?.isVerified) ||
+      refreshToken.user?.isDeleted ||
+      refreshToken.user?.isBlocked
+    ) {
       throw new UnauthorizedException('Invalid refresh token provided.');
     }
+
     return {
       access_token: this.getUserJWT({
         id: tokenPayLoad.id,
@@ -135,24 +170,23 @@ export class AuthService {
     };
   }
 
-  async signUp(loginDto: LoginDto): Promise<LoginResponseDto> {
+  async signUp(loginDto: LoginDto): Promise<{
+    access_token: string;
+    refresh_token: string;
+    user: UserDto;
+  }> {
+    this.logger.log(`signup user, username=${loginDto.username}`);
+
     const { salt, hash, iterations, pepperVersion } =
       await this.authUtils.hashPassword(loginDto.password);
 
-    /**
-     * TODO:
-     *  1.
-     *  2. generate email confirmation link
-     *  3. send validation email
-     *  4. update login to validate active account (email validated)
-     */
-
-    const { user, userRole, permissions } = await this.userRepository.createAccount(
-          loginDto.email,
-          salt,
-          hash,
-          iterations,
-          pepperVersion
+    const { user, userRole, permissions } =
+      await this.userRepository.createAccount(
+        loginDto.username,
+        salt,
+        hash,
+        iterations,
+        pepperVersion,
       );
 
     this.logger.log(`Created user with id ${user.id}`);
@@ -177,6 +211,52 @@ export class AuthService {
       },
     };
   }
+  async addEmail(
+    userId: number,
+    email: string,
+  ): Promise<Omit<user_email, 'userId'>> {
+    const user_email = await this.userRepository.addEmail(
+      BigInt(userId),
+      email,
+    );
+    await this.sendVerificationEmail(
+      user_email.id,
+      email,
+      user_email.user.username,
+    );
+    return {
+      id: user_email.id,
+      email: user_email.email,
+      isPrimary: user_email.isPrimary,
+      isVerified: user_email.isVerified,
+      createdAt: user_email.createdAt,
+      updatedAt: user_email.updatedAt,
+    };
+  }
+
+  async verifyEmail(token: string): Promise<boolean> {
+    const payload = jwt.verify(token, '');
+    const emailId = BigInt(payload.substring);
+    const user_email = await this.userRepository.verifyEmail(emailId);
+    return user_email?.isVerified || false;
+  }
+
+  private async sendVerificationEmail(
+    emailId: bigint,
+    email: string,
+    username: string,
+  ) {
+    const JWT: string = jwt.sign(emailId.toString(), '', {
+      expiresIn: 60 * 60 * 24,
+    });
+    const validationLink = `http://localhost:3000/auth/verify/email/${JWT}`;
+    return this.emailService.sendVerificationEmail(
+      email,
+      username,
+      validationLink,
+    );
+  }
+
   getUserJWT(jwtPayloadDto: JwtPayloadDto): string {
     return this.jwtService.sign(jwtPayloadDto);
   }

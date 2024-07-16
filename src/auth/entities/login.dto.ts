@@ -4,11 +4,11 @@ import { IsDefined, IsString } from 'class-validator';
 export class LoginDto {
   @ApiProperty({
     type: String,
-    example: 'example@example.com',
+    example: 'john99',
   })
   @IsString()
   @IsDefined()
-  email: string;
+  username: string;
 
   @ApiProperty({
     type: String,

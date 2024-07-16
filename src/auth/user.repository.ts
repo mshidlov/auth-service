@@ -10,6 +10,7 @@ import {
   role,
   PrismaClient,
   refresh_token,
+  user_email,
 } from '@prisma/client';
 import * as runtime from '@prisma/client/runtime/library';
 
@@ -114,26 +115,23 @@ export class UserRepository {
   }
 
   private createUser(
-      prisma: transaction,
-      email: string,
-      salt: string,
-      password: string,
-      iterations: number,
-      pepperVersion: string,
+    prisma: transaction,
+    username: string,
+    salt: string,
+    password: string,
+    iterations: number,
+    pepperVersion: string,
   ): Promise<
-      user & { account: account; refreshToken: refresh_token; password: password }
+    user & {
+      account: account;
+      refreshToken: refresh_token;
+      password: password;
+      user_email: user_email[];
+    }
   > {
     return prisma.user.create({
       data: {
-        username: email,
-        user_email: {
-          create: [
-            {
-              email,
-              isPrimary: true,
-            },
-          ],
-        },
+        username: username,
         account: {
           create: {},
         },
@@ -155,42 +153,49 @@ export class UserRepository {
         account: true,
         refreshToken: true,
         password: true,
+        user_email: true,
       },
     });
   }
 
   createAccount(
-      email: string,
-      salt: string,
-      password: string,
-      iterations: number,
-      pepperVersion: string,
+    username: string,
+    salt: string,
+    password: string,
+    iterations: number,
+    pepperVersion: string,
   ): Promise<{
     user: user & {
       account: account;
       refreshToken: refresh_token;
-      password: password
-    },
-    permissions:permission[],
-    userRole:user_role & { role: role },
+      password: password;
+      user_email: user_email[];
+    };
+    permissions: permission[];
+    userRole: user_role & { role: role };
   }> {
-    return this.prisma.$transaction(async prisma => {
-      const user = await this.createUser(prisma, email, salt, password, iterations, pepperVersion)
-      const permissions =
-          await this.getPermissions(prisma);
+    return this.prisma.$transaction(async (prisma) => {
+      const user = await this.createUser(
+        prisma,
+        username,
+        salt,
+        password,
+        iterations,
+        pepperVersion,
+      );
+      const permissions = await this.getPermissions(prisma);
       const userRole = await this.createAccountOwnerRole(
-          prisma,
-          user.id,
-          user.accountId,
-          permissions,
+        prisma,
+        user.id,
+        user.accountId,
+        permissions,
       );
       return {
         user,
         permissions,
         userRole,
       };
-
-    })
+    });
   }
 
   async createPassword(
@@ -253,12 +258,156 @@ export class UserRepository {
   getRefreshToken(
     userId: number,
     token: string,
-  ): Promise<refresh_token | null> {
+  ): Promise<(refresh_token & { user: user }) | null> {
     return this.prisma.refresh_token.findFirst({
       where: {
         userId: BigInt(userId),
         token,
       },
+      include: {
+        user: true,
+      },
+    });
+  }
+
+  /**
+   * The addEmail function associates an email with a user. If the email is set as primary,
+   * it updates any existing primary email to non-primary before adding or updating the email.
+   * If no primary email is specified and the user has no emails, it sets the first email as primary.
+   *
+   * @param userId the associated user the email belongs to
+   * @param email email to save
+   * @param primary is email primary
+   */
+  addEmail(
+    userId: bigint,
+    email: string,
+    primary?: boolean,
+  ): Promise<user_email & { user: user }> {
+    return this.prisma.$transaction(async (connection) => {
+      if (primary) {
+        await connection.user_email.updateMany({
+          where: {
+            userId: userId,
+          },
+          data: {
+            isPrimary: false,
+          },
+        });
+        return connection.user_email.upsert({
+          where: {
+            userId: userId,
+            email: email,
+          },
+          update: {
+            isPrimary: true,
+          },
+          create: {
+            user: {
+              connect: {
+                id: userId,
+              },
+            },
+            email,
+          },
+          include: {
+            user: true,
+          },
+        });
+      }
+
+      const emailsCount: number = await connection.user_email.count({
+        where: {
+          userId,
+        },
+      });
+
+      if (emailsCount) {
+        return connection.user_email.create({
+          data: {
+            user: {
+              connect: {
+                id: userId,
+              },
+            },
+            email,
+          },
+          include: {
+            user: true,
+          },
+        });
+      }
+
+      return connection.user_email.create({
+        data: {
+          user: {
+            connect: {
+              id: userId,
+            },
+          },
+          email,
+          isPrimary: true,
+        },
+        include: {
+          user: true,
+        },
+      });
+    });
+  }
+
+  verifyEmail(id: bigint): Promise<user_email> {
+    return this.prisma.$transaction(async (connection) => {
+      const user_email = await connection.user_email.update({
+        where: {
+          id,
+        },
+        data: {
+          isVerified: true,
+        },
+      });
+
+      await connection.user.update({
+        where: {
+          id: user_email.userId,
+        },
+        data: {
+          isVerified: true,
+        },
+      });
+      return user_email;
+    });
+  }
+
+  /**
+   * The deleteEmail function removes an email address associated with a user, ensuring it is not the primary email.
+   * @param userId
+   * @param email
+   * @throws Error if the email does not exist or if it is the primary email address.
+   */
+  deleteEmail(userId: bigint, email: string): Promise<user_email> {
+    return this.prisma.$transaction(async (connection) => {
+      const user_email = await connection.user_email.findFirst({
+        where: {
+          userId,
+          email,
+        },
+      });
+
+      if (!user_email) {
+        throw new Error('Email not found for the specified user.');
+      }
+
+      if (user_email.isPrimary) {
+        throw new Error(
+          'Cannot delete the primary email address for the user.',
+        );
+      }
+
+      return connection.user_email.delete({
+        where: {
+          id: user_email.id,
+        },
+      });
     });
   }
 }
