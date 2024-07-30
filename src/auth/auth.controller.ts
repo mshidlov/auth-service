@@ -10,16 +10,16 @@ import {
   Req,
   UseGuards,
   NotImplementedException,
-  Logger,
+  Logger, ForbiddenException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Response, Request } from 'express';
 import { JwtGuard } from './jwt.guard';
 import { JwtPayload } from './jwt-payload.decorator';
 import { JwtPayloadDto } from './jwt-payload.dto';
-import { SignupDto } from './entities/signup.dto';
-import { LoginResponseDto } from './entities/login-response.dto';
-import { LoginDto } from './entities/login.dto';
+import { SignupDto } from './entities';
+import { LoginResponseDto } from './entities';
+import { LoginDto } from './entities';
 
 @Controller()
 export class AuthController {
@@ -36,7 +36,7 @@ export class AuthController {
     res: Response,
   ): Promise<LoginResponseDto> {
     const response = await this.authService.signIn(
-      loginDto.email,
+      loginDto.username,
       loginDto.password,
     );
     this.setCookies(res, response.access_token, response.refresh_token);
@@ -59,6 +59,21 @@ export class AuthController {
     return response;
   }
 
+  @Post('verify/email/:JWT')
+  async verifyEmail(
+    @Param('JWT') JWT: string,
+    @Res({
+      passthrough: true,
+    })
+    res: Response,
+  ): Promise<void> {
+    res.status(HttpStatus.FOUND);
+    if (await this.authService.verifyEmail(JWT)) {
+      res.location('http://localhost:8080/verify/email/success');
+    } else {
+      res.location('http://localhost:8080/verify/email/fail');
+    }
+  }
   @Post('forgot-password')
   async forgotPassword(
     @Body() forgotPassword: { email: string }, // eslint-disable-line
@@ -78,14 +93,16 @@ export class AuthController {
   @Get('logout/:userId')
   async signOut(
     @Param('userId') userId: number,
-    @Req() req: Request,
+    @JwtPayload() jwt: JwtPayloadDto,
     @Res({
       passthrough: true,
     })
     res: Response,
   ): Promise<void> {
-    const access_token = req.cookies.access_token || req.headers.authorization;
-    await this.authService.signOut(userId, access_token);
+    if(userId != jwt.id){
+      throw new ForbiddenException("Action is not allowed")
+    }
+    await this.authService.signOut(userId);
     res.clearCookie('access_token');
     res.clearCookie('refresh_token');
     return;

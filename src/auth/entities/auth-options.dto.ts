@@ -1,5 +1,5 @@
-import {DigestAlgorithm} from "./digest-algorithm.type";
-import {HashingAlgorithm} from "./hashing-algorithm.type";
+import { DigestAlgorithm } from './digest-algorithm.type';
+import { HashingAlgorithm } from './hashing-algorithm.type';
 
 export class AuthOptions {
   saltLength: number;

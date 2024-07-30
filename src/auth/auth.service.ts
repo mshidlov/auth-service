@@ -1,30 +1,63 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException, Inject,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthUtils } from './auth.util';
 import { UserRepository } from './user.repository';
-import { password, privilege, refresh_token, user } from '@prisma/client';
+import {
+  password,
+  privilege,
+  refresh_token,
+  user,
+  user_email,
+} from '@prisma/client';
 import { PermissionsDto } from './permissions.dto';
 import { PrivilegeEnum } from './privilege.enum';
 import { JwtPayloadDto } from './jwt-payload.dto';
-import { LoginResponseDto } from './entities';
+import { LoginResponseDto, UserDto } from './entities';
 import { LoginDto } from './entities';
-import { JwtService } from '@nestjs/jwt';
+
+import { EmailService } from './email.service';
+import {TokenService} from "./token.service";
+import {serviceTokensConstants} from "./constants";
 
 @Injectable()
 export class AuthService {
   private logger = new Logger(AuthService.name);
+
+  private configurations: {
+    emails: {
+      verificationTokenTTL: number
+      verificationIsRequired: boolean
+      verificationLocation: string
+    };
+  } = {
+    emails: {
+      verificationTokenTTL: 60 * 60 * 24,
+      verificationIsRequired: true,
+      verificationLocation: "http://localhost:3000"
+    },
+  };
   constructor(
     private userRepository: UserRepository,
     private authUtils: AuthUtils,
-    private jwtService: JwtService,
+    private emailService: EmailService,
+    @Inject(serviceTokensConstants.JWT_SERVICE_TOKEN) private jwtService:TokenService,
+    @Inject(serviceTokensConstants.EMAILS_JWT_SERVICE_TOKEN) private emailTokenService:TokenService,
   ) {}
 
   async signIn(username: string, password: string): Promise<LoginResponseDto> {
     const user = await this.userRepository.findOne(username);
-    if (!user) {
-      throw new UnauthorizedException('Invalid login credentials provided.');
+    if (this.configurations.emails.verificationIsRequired && !user.isVerified) {
+      throw new ForbiddenException('Please validate your email');
     }
 
     if (
+      !user ||
+      user.isBlocked ||
+      user.isDeleted ||
       !(await this.authUtils.isPasswordCorrect(
         user.password.password,
         user.password.salt,
@@ -38,7 +71,7 @@ export class AuthService {
     const refreshToken = await this.getRefreshToken(user);
     const permissionsAndRoles =
       await this.userRepository.getUserRolesAndPermissions(user.id);
-    const JWT: string = this.getUserJWT({
+    const JWT: string = await this.jwtService.sign({
       id: Number(user.id),
       account: Number(user.accountId),
       roles: permissionsAndRoles.roles,
@@ -88,17 +121,8 @@ export class AuthService {
     return PrivilegeEnum[privilege.toString() as keyof typeof PrivilegeEnum];
   }
 
-  async signOut(userId: number, access_token: string): Promise<void> {
-    const JWT = await this.extractJWT(access_token);
-    if (
-      !JWT ||
-      BigInt(JWT.id) !== BigInt(userId) ||
-      JWT['exp'] < Date.now() / 1000
-    ) {
-      throw new UnauthorizedException();
-    }
+  async signOut(userId: number): Promise<void> {
     await this.userRepository.deleteRefreshToken(BigInt(userId));
-    return;
   }
 
   private async getRefreshToken(
@@ -111,21 +135,26 @@ export class AuthService {
   }
 
   async refresh(param: {
-    access_token: any;
-    refresh_token: any;
+    access_token: string;
+    refresh_token: string;
   }): Promise<{ access_token: string; refresh_token: string }> {
-    const tokenPayLoad: JwtPayloadDto = await this.extractJWT(
-      param.access_token,
-    );
+    const tokenPayLoad: JwtPayloadDto = this.tokenPayload(param.access_token)
     const refreshToken = await this.userRepository.getRefreshToken(
       tokenPayLoad.id,
       param.refresh_token,
     );
-    if (!refreshToken || refreshToken.userId !== BigInt(tokenPayLoad.id)) {
+    if (
+      !refreshToken ||
+      refreshToken.userId !== BigInt(tokenPayLoad.id) ||
+        (this.configurations.emails.verificationIsRequired && refreshToken.user?.isVerified) ||
+      refreshToken.user?.isDeleted ||
+      refreshToken.user?.isBlocked
+    ) {
       throw new UnauthorizedException('Invalid refresh token provided.');
     }
+
     return {
-      access_token: this.getUserJWT({
+      access_token: await this.jwtService.sign({
         id: tokenPayLoad.id,
         account: tokenPayLoad.account,
         roles: tokenPayLoad.roles,
@@ -135,46 +164,28 @@ export class AuthService {
     };
   }
 
-  async signUp(loginDto: LoginDto): Promise<LoginResponseDto> {
+  async signUp(loginDto: LoginDto): Promise<{
+    access_token: string;
+    refresh_token: string;
+    user: UserDto;
+  }> {
+    this.logger.log(`signup user, username=${loginDto.username}`);
+
     const { salt, hash, iterations, pepperVersion } =
       await this.authUtils.hashPassword(loginDto.password);
 
-    /**
-     * TODO:
-     *  1. manage signup transaction from repository
-     *  2. generate email confirmation link
-     *  3. send validation email
-     *  4. update login to validate active account (email validated)
-     */
-
     const { user, userRole, permissions } =
-      await this.userRepository.transaction(async (connection) => {
-        const user = await this.userRepository.createUser(
-          connection,
-          loginDto.email,
-          salt,
-          hash,
-          iterations,
-          pepperVersion,
-        );
-        const permissions =
-          await this.userRepository.getPermissions(connection);
-        const userRole = await this.userRepository.createAccountOwnerRole(
-          connection,
-          user.id,
-          user.accountId,
-          permissions,
-        );
-        return {
-          user,
-          permissions,
-          userRole,
-        };
-      });
+      await this.userRepository.createAccount(
+        loginDto.username,
+        salt,
+        hash,
+        iterations,
+        pepperVersion,
+      );
 
     this.logger.log(`Created user with id ${user.id}`);
     return {
-      access_token: this.getUserJWT({
+      access_token: await this.jwtService.sign({
         id: Number(user.id),
         account: Number(user.accountId),
         roles: [userRole.role.name],
@@ -194,11 +205,51 @@ export class AuthService {
       },
     };
   }
-  getUserJWT(jwtPayloadDto: JwtPayloadDto): string {
-    return this.jwtService.sign(jwtPayloadDto);
+  async addEmail(
+    userId: number,
+    email: string,
+  ): Promise<Omit<user_email, 'userId'>> {
+    const user_email = await this.userRepository.addEmail(
+      BigInt(userId),
+      email,
+    );
+    await this.sendVerificationEmail(
+      user_email.id,
+      email,
+      user_email.user.username,
+    );
+    return {
+      id: user_email.id,
+      email: user_email.email,
+      isPrimary: user_email.isPrimary,
+      isVerified: user_email.isVerified,
+      createdAt: user_email.createdAt,
+      updatedAt: user_email.updatedAt,
+    };
   }
 
-  async extractJWT(access_token: string): Promise<JwtPayloadDto> {
-    return this.jwtService.decode(access_token);
+  async verifyEmail(token: string): Promise<boolean> {
+    const payload = this.emailTokenService.verify(token)
+    const emailId = BigInt(payload.payload.substring);
+    const user_email = await this.userRepository.verifyEmail(emailId);
+    return user_email?.isVerified || false;
+  }
+
+  private async sendVerificationEmail(
+    emailId: bigint,
+    email: string,
+    username: string,
+  ) {
+    const JWT = await this.emailTokenService.sign(emailId.toString());
+    const validationLink = `${this.configurations.emails.verificationLocation}/auth/verify/email/${JWT}`;
+    return this.emailService.sendVerificationEmail(
+      email,
+      username,
+      validationLink,
+    );
+  }
+
+  private tokenPayload(jwt:string): JwtPayloadDto {
+    return JSON.parse(this.jwtService.decode(jwt).payload.substring)
   }
 }

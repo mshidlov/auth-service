@@ -1,3 +1,11 @@
+[//]: # (https://shields.io/badges)
+[//]: # (![GitHub Actions Workflow Status]&#40;https://img.shields.io/github/actions/workflow/status/mshidlov/auth-service/code-validation.yaml&#41;)
+[//]: # (![GitHub branch check runs]&#40;https://img.shields.io/github/check-runs/mshidlov/auth-service/main&#41;)
+[//]: # (![GitHub package.json version]&#40;https://img.shields.io/github/package-json/v/mshidlov/auth-service&#41;)
+[//]: # (![GitHub Release]&#40;https://img.shields.io/github/v/release/mshidlov/auth-service&#41;)
+
+
+
 # 🚀 General Purpose Authentication Server
 
 Welcome to our open-source project! This is a powerful, flexible, and secure authentication server built with the cutting-edge technologies NestJS and PrismaJS. It's designed to handle the heavy lifting of user authentication, so you can focus on what matters most - building your application.
