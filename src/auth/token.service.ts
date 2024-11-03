@@ -44,21 +44,35 @@ export class TokenService {
 
     verify(token: string, options?:{
 
-    }):Jwt {
-        return jwt.verify(token,this.options.secretKey,{
+    }):Promise<Jwt> {
+        return new Promise((resolve, reject) => jwt.verify(token, this.options.secretKey, {
             complete: true,
             ...(options || {}),
-        })
+        }, (error, decoded) => {
+            {
+                if (error) {
+                    reject(error)
+                }
+                resolve(decoded as Jwt)
+            }
+        }))
     }
 
     decode(token: string, options?:{
 
-    }):Jwt {
-        return jwt.verify(token,this.options.secretKey,{
-            complete: true,
-            ignoreExpiration: true,
-            ignoreNotBefore: true,
-            ...(options || {}),
+    }):Promise<Jwt> {
+        return new Promise((resolve, reject) => {
+            jwt.verify(token,this.options.secretKey,{
+                complete: true,
+                ignoreExpiration: true,
+                ignoreNotBefore: true,
+                ...(options || {}),
+            },(error, decoded) => {
+                if(error){
+                    reject(error)
+                }
+                resolve(decoded as Jwt)
+            })
         })
     }
 

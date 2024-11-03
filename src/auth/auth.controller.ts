@@ -10,7 +10,7 @@ import {
   Req,
   UseGuards,
   NotImplementedException,
-  Logger, ForbiddenException,
+  Logger, ForbiddenException, UnauthorizedException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Response, Request } from 'express';
@@ -43,6 +43,8 @@ export class AuthController {
     return response;
   }
 
+
+  //TODO: Unique constraint failed on the constraint: `user_username_key`
   @Post('signup')
   async signUp(
     @Body() signupDto: SignupDto,
@@ -59,7 +61,15 @@ export class AuthController {
     return response;
   }
 
-  @Post('verify/email/:JWT')
+  @Post('user/email')
+    async sendVerificationEmail(
+        @JwtPayload() jwtPayload: JwtPayloadDto,
+        @Body() sendVerificationEmail: { email: string },
+    ): Promise<void> {
+        await this.authService.updateUserEmail(jwtPayload.id,sendVerificationEmail.email);
+    }
+
+  @Post('user/email/verify/:JWT')
   async verifyEmail(
     @Param('JWT') JWT: string,
     @Res({
@@ -91,6 +101,7 @@ export class AuthController {
   }
 
   @Get('logout/:userId')
+  @UseGuards(JwtGuard)
   async signOut(
     @Param('userId') userId: number,
     @JwtPayload() jwt: JwtPayloadDto,
@@ -119,10 +130,18 @@ export class AuthController {
     access_token: string;
     refresh_token: string;
   }> {
+    if(!(req.cookies.refresh_token && req.cookies.access_token) && !(req.headers['x-refresh-token'] && req.headers.authorization)){
+        throw new UnauthorizedException("Action is not allowed")
+    }
     const { access_token, refresh_token } = await this.authService.refresh({
-      access_token: req.cookies.access_token || req.headers.authorization,
-      refresh_token:
-        req.cookies.refresh_token || req.headers['x-refresh-token'],
+      cookies: req.cookies.access_token && req.cookies.refresh_token ? {
+        access_token: req.cookies.access_token,
+        refresh_token: req.cookies.refresh_token,
+      } : undefined,
+      headers: req.headers.authorization && req.headers['x-refresh-token'] ? {
+        access_token: req.headers.authorization,
+        refresh_token: req.headers['x-refresh-token'] as string,
+      } : undefined,
     });
     this.setCookies(res, access_token, refresh_token);
     return {

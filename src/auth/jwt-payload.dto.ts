@@ -17,4 +17,8 @@ export class JwtPayloadDto {
   @Type(() => PermissionsDto)
   @ValidateNested({ each: true })
   permissions: PermissionsDto[];
+
+    constructor(partial: Partial<JwtPayloadDto>) {
+        Object.assign(this, partial);
+    }
 }

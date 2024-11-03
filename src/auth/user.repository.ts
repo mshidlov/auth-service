@@ -115,19 +115,19 @@ export class UserRepository {
   }
 
   private createUser(
-    prisma: transaction,
-    username: string,
-    salt: string,
-    password: string,
-    iterations: number,
-    pepperVersion: string,
+      prisma: transaction,
+      username: string,
+      salt: string,
+      password: string,
+      iterations: number,
+      pepperVersion: string,
   ): Promise<
-    user & {
-      account: account;
-      refreshToken: refresh_token;
-      password: password;
-      user_email: user_email[];
-    }
+      user & {
+    account: account;
+    refreshToken: refresh_token;
+    password: password;
+    user_email: user_email[];
+  }
   > {
     return prisma.user.create({
       data: {
@@ -159,11 +159,11 @@ export class UserRepository {
   }
 
   createAccount(
-    username: string,
-    salt: string,
-    password: string,
-    iterations: number,
-    pepperVersion: string,
+      username: string,
+      salt: string,
+      password: string,
+      iterations: number,
+      pepperVersion: string,
   ): Promise<{
     user: user & {
       account: account;
@@ -176,19 +176,19 @@ export class UserRepository {
   }> {
     return this.prisma.$transaction(async (prisma) => {
       const user = await this.createUser(
-        prisma,
-        username,
-        salt,
-        password,
-        iterations,
-        pepperVersion,
+          prisma,
+          username,
+          salt,
+          password,
+          iterations,
+          pepperVersion,
       );
       const permissions = await this.getPermissions(prisma);
       const userRole = await this.createAccountOwnerRole(
-        prisma,
-        user.id,
-        user.accountId,
-        permissions,
+          prisma,
+          user.id,
+          user.accountId,
+          permissions,
       );
       return {
         user,

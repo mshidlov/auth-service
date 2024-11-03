@@ -1,10 +1,11 @@
 import { AuthGuard } from '@nestjs/passport';
-import { ExecutionContext } from '@nestjs/common';
+import {ExecutionContext, Injectable} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PUBLIC_DECORATOR_KEY } from './is-public.decorator';
 import { REQUIRE_PERMISSIONS_DECORATOR_KEY } from './permissions.decorator';
 import { PrivilegeEnum } from './privilege.enum';
 
+@Injectable()
 export class JwtGuard extends AuthGuard('jwt') {
   constructor(private readonly reflector: Reflector) {
     super();
@@ -24,6 +25,7 @@ export class JwtGuard extends AuthGuard('jwt') {
     permissions: { resource: string; privilege: string }[];
   } {
     const request = context.switchToHttp().getRequest();
+    console.dir(request.user);
     return request.user;
   }
 
@@ -45,8 +47,8 @@ export class JwtGuard extends AuthGuard('jwt') {
       return false;
     }
 
-    if (!this.canActivatePermissions(context, user)) {
-    }
+    return this.canActivatePermissions(context, user);
+
   }
 
   private canActivatePermissions(

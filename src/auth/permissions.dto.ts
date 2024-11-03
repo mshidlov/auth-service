@@ -8,4 +8,9 @@ export class PermissionsDto {
   @IsArray()
   @IsEnum(PrivilegeEnum, { each: true })
   p: PrivilegeEnum[];
+
+  constructor(p: PrivilegeEnum[], r: string) {
+    this.p = p;
+    this.r = r;
+  }
 }

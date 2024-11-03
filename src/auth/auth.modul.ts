@@ -1,29 +1,21 @@
 import { Module } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
-import {jwtConstants, serviceTokensConstants} from './constants';
-import { JwtStrategy } from './jwt.strategy';
+import { serviceTokensConstants} from './constants';
 import { UserRepository } from './user.repository';
 import { PrismaService } from './prisma.service';
-import { PassportModule } from '@nestjs/passport';
 import { AuthUtils } from './auth.util';
 import { AuthOptions } from './entities';
 import {TokenService} from "./token.service";
+import {MailingService} from "./mailing.service";
+import {EmailTemplateService} from "./email-template.service";
+import * as process from "node:process";
 
 @Module({
   imports: [
-    PassportModule.register({ defaultStrategy: 'jwt', session: false }),
-    JwtModule.register({
-      global: true,
-      secret: jwtConstants.secret,
-      signOptions: {
-        expiresIn: '60s',
-      },
-    }),
+
   ],
   providers: [
-    JwtStrategy,
     {
       provide: AuthOptions,
       useValue: {
@@ -39,22 +31,24 @@ import {TokenService} from "./token.service";
     AuthUtils,
     PrismaService,
     UserRepository,
+    EmailTemplateService,
+    MailingService,
     {
       provide: serviceTokensConstants.JWT_SERVICE_TOKEN,
-      useFactory: () => {
-        new TokenService({
-          expiresIn: "60s",
-          secretKey: ""
+      useFactory: () => (
+          new TokenService({
+          expiresIn: process.env.JWT_EXPIRES_IN,
+          secretKey: process.env.JWT_SECRET,
         })
-      }
+      )
     }, {
       provide: serviceTokensConstants.EMAILS_JWT_SERVICE_TOKEN,
-      useFactory: () => {
+      useFactory: () => (
         new TokenService({
-          expiresIn: "60s",
-          secretKey: ""
+          expiresIn: process.env.EMAILS_JWT_EXPIRES_IN,
+          secretKey: process.env.JWT_SECRET,
         })
-      }
+      )
     },
     AuthService,
   ],

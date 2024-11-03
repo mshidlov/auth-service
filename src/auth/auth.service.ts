@@ -19,7 +19,7 @@ import { JwtPayloadDto } from './jwt-payload.dto';
 import { LoginResponseDto, UserDto } from './entities';
 import { LoginDto } from './entities';
 
-import { EmailService } from './email.service';
+import { MailingService } from './mailing.service';
 import {TokenService} from "./token.service";
 import {serviceTokensConstants} from "./constants";
 
@@ -36,24 +36,20 @@ export class AuthService {
   } = {
     emails: {
       verificationTokenTTL: 60 * 60 * 24,
-      verificationIsRequired: true,
+      verificationIsRequired: false,
       verificationLocation: "http://localhost:3000"
     },
   };
   constructor(
     private userRepository: UserRepository,
     private authUtils: AuthUtils,
-    private emailService: EmailService,
+    private emailService: MailingService,
     @Inject(serviceTokensConstants.JWT_SERVICE_TOKEN) private jwtService:TokenService,
     @Inject(serviceTokensConstants.EMAILS_JWT_SERVICE_TOKEN) private emailTokenService:TokenService,
   ) {}
 
   async signIn(username: string, password: string): Promise<LoginResponseDto> {
     const user = await this.userRepository.findOne(username);
-    if (this.configurations.emails.verificationIsRequired && !user.isVerified) {
-      throw new ForbiddenException('Please validate your email');
-    }
-
     if (
       !user ||
       user.isBlocked ||
@@ -66,6 +62,10 @@ export class AuthService {
       ))
     ) {
       throw new UnauthorizedException('Invalid login credentials provided.');
+    }
+
+    if (this.configurations.emails.verificationIsRequired && !user.isVerified) {
+      throw new ForbiddenException('Please validate your email');
     }
 
     const refreshToken = await this.getRefreshToken(user);
@@ -134,14 +134,36 @@ export class AuthService {
     return user.refreshToken;
   }
 
+    extractJwtTokenFromHeader(authorization: string): string {
+      if (!authorization) {
+        throw new UnauthorizedException('Authorization header is missing');
+      }
+      const parts = authorization.split(' ');
+      if (parts.length !== 2) {
+        throw new UnauthorizedException('Invalid authorization header');
+      }
+      if (parts[0].toLowerCase() !== 'bearer') {
+        throw new UnauthorizedException('Invalid authorization header');
+      }
+      return parts[1];
+    }
+
   async refresh(param: {
-    access_token: string;
-    refresh_token: string;
+    cookies?: {
+      access_token: string;
+      refresh_token: string;
+    },
+    headers?: {
+      access_token: string;
+      refresh_token: string;
+    }
   }): Promise<{ access_token: string; refresh_token: string }> {
-    const tokenPayLoad: JwtPayloadDto = this.tokenPayload(param.access_token)
+    const access_token = param?.cookies?.access_token || this.extractJwtTokenFromHeader(param?.headers?.access_token)
+    const refresh_token = param?.cookies?.refresh_token || param?.headers?.refresh_token
+    const tokenPayLoad: JwtPayloadDto = await this.tokenPayload(access_token);
     const refreshToken = await this.userRepository.getRefreshToken(
       tokenPayLoad.id,
-      param.refresh_token,
+      refresh_token,
     );
     if (
       !refreshToken ||
@@ -160,7 +182,7 @@ export class AuthService {
         roles: tokenPayLoad.roles,
         permissions: tokenPayLoad.permissions,
       }),
-      refresh_token: param.refresh_token,
+      refresh_token: refresh_token,
     };
   }
 
@@ -169,6 +191,11 @@ export class AuthService {
     refresh_token: string;
     user: UserDto;
   }> {
+
+    if (await this.userRepository.findOne(loginDto.username)) {
+      throw new ForbiddenException('Username is already taken.');
+    }
+
     this.logger.log(`signup user, username=${loginDto.username}`);
 
     const { salt, hash, iterations, pepperVersion } =
@@ -205,7 +232,7 @@ export class AuthService {
       },
     };
   }
-  async addEmail(
+  async updateUserEmail(
     userId: number,
     email: string,
   ): Promise<Omit<user_email, 'userId'>> {
@@ -229,7 +256,7 @@ export class AuthService {
   }
 
   async verifyEmail(token: string): Promise<boolean> {
-    const payload = this.emailTokenService.verify(token)
+    const payload = await this.emailTokenService.verify(token)
     const emailId = BigInt(payload.payload.substring);
     const user_email = await this.userRepository.verifyEmail(emailId);
     return user_email?.isVerified || false;
@@ -249,7 +276,11 @@ export class AuthService {
     );
   }
 
-  private tokenPayload(jwt:string): JwtPayloadDto {
-    return JSON.parse(this.jwtService.decode(jwt).payload.substring)
+  private async tokenPayload(jwt:string): Promise<JwtPayloadDto> {
+    const decoded = await this.jwtService.decode(jwt)
+    if (!decoded || !decoded.payload) {
+      throw new UnauthorizedException('Invalid token provided.');
+    }
+    return JSON.parse(JSON.stringify(decoded.payload))
   }
 }

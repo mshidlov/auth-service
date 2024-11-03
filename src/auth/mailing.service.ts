@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import nodemailer from 'nodemailer';
+import * as nodemailer from 'nodemailer';
 import { EmailTemplateService } from './email-template.service';
 
 @Injectable()
-export class EmailService {
+export class MailingService {
   private transporter: nodemailer.Transporter;
 
   constructor(private emailContentService: EmailTemplateService) {
@@ -17,13 +17,26 @@ export class EmailService {
   }
 
   sendVerificationEmail(
-    email: string,
-    username: string,
-    validationLink: string,
+      email: string,
+      username: string,
+      validationLink: string,
   ): Promise<void> {
     const emailContent = this.emailContentService.get('email-validation', {
       username,
       validationLink,
+    });
+    return this.sendEmail(email, emailContent.subject, emailContent.message);
+  }
+
+
+  sendResetPassword(
+      email: string,
+      username: string,
+      resetPasswordPageURL: string,
+  ): Promise<void> {
+    const emailContent = this.emailContentService.get('reset-password', {
+      username,
+      resetPasswordPageURL,
     });
     return this.sendEmail(email, emailContent.subject, emailContent.message);
   }

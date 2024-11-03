@@ -20,9 +20,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return req?.cookies?.access_token;
   };
 
-  async validate(payload: any): Promise<{ userId: number }> {
+  async validate(payload: any): Promise<{
+    id: number;
+    account: number;
+    roles: string[];
+    permissions: { resource: string; privilege:string }[];
+  }> {
     return {
-      userId: payload?.userId,
+      id: payload.id,
+      account: payload.account,
+      roles: payload.roles,
+      permissions: payload.permissions,
     };
   }
 }
