@@ -1,11 +1,11 @@
 import {Body, Controller, Delete, Get, Logger, NotImplementedException, Param, Put, UseGuards} from "@nestjs/common";
 import {UserDto} from "./entities";
-import {JwtGuard} from "../auth/jwt.guard";
 import {IntParam, Permissions} from "../decorators";
-import {JwtPayload} from "../auth/jwt-payload.decorator";
-import {JwtPayloadDto} from "../auth/jwt-payload.dto";
 import {UserService} from "./user.service";
 import {UpdateUserDto} from "./entities/update-user.dto";
+import {JwtGuard} from "../auth/guards";
+import {JwtPayload} from "../auth/decorators";
+import {JwtPayloadDto} from "../auth/entities";
 
 @UseGuards(JwtGuard)
 @Controller('user')

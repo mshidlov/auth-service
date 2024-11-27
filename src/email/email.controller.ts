@@ -1,12 +1,11 @@
 import {Body, Controller, Delete, Get, Logger, Param, Post, Put, UseGuards} from "@nestjs/common";
 import {IntParam, Permissions} from "../decorators";
 import {EmailAddressDto} from "./entities";
-import {JwtPayload} from "../auth/jwt-payload.decorator";
-import {JwtPayloadDto} from "../auth/jwt-payload.dto";
 import {EmailService} from "./email.service";
 import {CreateEmailAddressDto} from "./entities/create-email-address.dto";
-import {JwtGuard} from "../auth/jwt.guard";
-import {Public} from "../auth/is-public.decorator";
+import {JwtPayloadDto} from "../auth/entities";
+import {JwtPayload, Public} from "../auth/decorators";
+import {JwtGuard} from "../auth/guards";
 
 @UseGuards(JwtGuard)
 @Controller('user')

@@ -1,9 +1,20 @@
-import {Body, Controller, Get, Logger, Param, ParseIntPipe, Post, Res, UseGuards} from "@nestjs/common";
+import {
+    Body,
+    Controller,
+    Get,
+    Logger,
+    Param,
+    ParseIntPipe,
+    Post, Req,
+    Res,
+    UnauthorizedException,
+    UseGuards
+} from "@nestjs/common";
 import {JwtPayloadDto, LoginRequest, LoginResponse, SignupRequest} from "./entities";
 import {AuthenticationService} from "./authentication.service";
-import {Response} from "express";
+import {Response, Request} from "express";
 import {JwtGuard} from "./guards";
-import {JwtPayload} from "./decorators/jwt-payload.decorator";
+import {JwtPayload} from "./decorators";
 
 @Controller()
 export class AuthenticationController{
@@ -27,39 +38,61 @@ export class AuthenticationController{
         }
     }
 
+
+    //TODO: Unique constraint failed on the constraint: `user_username_key`
     @Post('signup')
-    async signup(@Body() signupRequest:SignupRequest): Promise<void>{
+    async signup(@Body() signupRequest:SignupRequest,
+                 @Res({passthrough: true}) response: Response): Promise<LoginResponse>{
         try {
             this.logger.log(`Signup attempt for user ${signupRequest.username}`);
-            await this.authenticationService.signup(signupRequest.password, signupRequest.username, signupRequest.email);
+            const result = await this.authenticationService.signup(signupRequest.password, signupRequest.username, signupRequest.email);
+            this.setCookies(response, result.access_token, result.refresh_token);
             this.logger.log(`Signup successful for user ${signupRequest.username}`);
+            return result;
         } catch (error) {
             this.logger.error(`Signup failed for user ${signupRequest.username}`);
             throw error;
         }
     }
 
+
     @UseGuards(JwtGuard)
     @Get('logout/:user-id')
     async logout(@JwtPayload() jwtPayload:JwtPayloadDto,
-                    @Param('user-id', ParseIntPipe) userId: number,
-                    @Res({ passthrough: true }) response:Response):Promise<void>{
-        try {
-            this.logger.log(`Logout attempt for user ${userId}`);
-            const token = await this.authenticationService.logout(jwtPayload,userId);
-            this.clearCookies(response);
-            this.logger.log(`Logout successful for user ${userId} token ${token.id} was deleted`);
-        } catch (error) {
-            this.logger.error(`Logout failed for user ${userId} with error ${error}`);
-            throw error;
+                  @Param('user-id', ParseIntPipe) userId: number,
+                  @Res({ passthrough: true }) response:Response):Promise<void>{
+        if(userId != jwtPayload.id){
+            throw new UnauthorizedException("Action is not allowed")
         }
+        const token = await this.authenticationService.logout(jwtPayload,userId);
+        this.clearCookies(response);
+        return;
     }
 
     @Get('refresh')
-    async refresh(){
-        throw new Error('Not implemented');
+    async refresh(
+        @Req() req: Request,
+        @Res({ passthrough: true }) res: Response,
+    ): Promise<Omit<LoginResponse, 'user'>> {
+        if(!(req.cookies.refresh_token && req.cookies.access_token) && !(req.headers['x-refresh-token'] && req.headers.authorization)){
+            throw new UnauthorizedException("Action is not allowed")
+        }
+        const { access_token, refresh_token } = await this.authenticationService.refresh({
+            cookies: req.cookies.access_token && req.cookies.refresh_token ? {
+                access_token: req.cookies.access_token,
+                refresh_token: req.cookies.refresh_token,
+            } : undefined,
+            headers: req.headers.authorization && req.headers['x-refresh-token'] ? {
+                access_token: req.headers.authorization,
+                refresh_token: req.headers['x-refresh-token'] as string,
+            } : undefined,
+        });
+        this.setCookies(res, access_token, refresh_token);
+        return {
+            access_token,
+            refresh_token,
+        };
     }
-
 
     private setCookies(
         res: Response,

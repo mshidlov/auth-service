@@ -1,12 +1,12 @@
 import {ConflictException, Injectable, NotFoundException, UnauthorizedException} from "@nestjs/common";
 import {CreateEmailAddressDto} from "./entities/create-email-address.dto";
 import {EmailAddressDto} from "./entities";
-import {MailingService} from "../auth/mailing.service";
 import {EmailRepository} from "./email.repository";
 import {EmailConfig} from "./email.config";
 import {TokenService} from "../auth/token.service";
 import {user, user_email} from "@prisma/client";
 import {LimitationExceedException, UniqueException} from "./exceptions";
+import {MailingService} from "../notifications/mailing.service";
 
 @Injectable()
 export class EmailService{

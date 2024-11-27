@@ -8,9 +8,8 @@ import {
     role,
     role_permission,
     user,
-    user_email,
     user_role,
-    PrismaClient
+    PrismaClient, privilege
 } from "@prisma/client";
 import * as runtime from '@prisma/client/runtime/library';
 import { randomBytes } from 'crypto';
@@ -18,37 +17,40 @@ import { randomBytes } from 'crypto';
 type transaction = Omit<PrismaClient, runtime.ITXClientDenyList>;
 
 @Injectable()
-export class AuthenticationRepository{
+export class AuthenticationRepository {
     constructor(private prismaService: PrismaService) {
     }
 
-    async createUserAccount(username: string, salt: string, hash: string, iterations: number, pepperVersion: string, email?: string): Promise<user & {
-        account: account,
-        user_email: user_email[];
-        user_role: user_role[];
+    async createUserAccount(username: string, salt: string, hash: string, iterations: number, pepperVersion: string, email?: string): Promise<{
+        user: user & {
+            account: account;
+            refreshToken: refresh_token;
+        };
+        permissions: permission[];
+        userRole: user_role & { role: role };
     }> {
-        return this.prismaService.$transaction(async (connection) => {
+        return this.prismaService.$transaction(async (prisma) => {
             const user = await this.createUser(
-                connection,
+                prisma,
                 username,
                 salt,
                 hash,
                 iterations,
                 pepperVersion,
             );
-            const permissions = await this.getPermissions(connection);
-            const user_role = await this.createAccountOwnerRole(
-                connection,
+            const permissions = await this.getPermissions(prisma);
+            const userRole = await this.createAccountOwnerRole(
+                prisma,
                 user.id,
                 user.accountId,
                 permissions,
             );
-
             return {
-                ...user,
-                user_role: [user_role],
-            }
-        })
+                user,
+                permissions,
+                userRole,
+            };
+        });
     }
 
     private async getPermissions(prisma: transaction): Promise<permission[]> {
@@ -60,7 +62,7 @@ export class AuthenticationRepository{
         userId: bigint,
         accountId: bigint,
         permissions: permission[],
-    ): Promise<user_role> {
+    ): Promise<user_role & { role: role}> {
         return prisma.user_role.create({
             data: {
                 role: {
@@ -82,10 +84,11 @@ export class AuthenticationRepository{
                     },
                 }
             },
+            include: {
+                role: true,
+            },
         });
     }
-
-
 
 
     private createUser(
@@ -99,7 +102,7 @@ export class AuthenticationRepository{
     ): Promise<
         user & {
         account: account;
-        user_email: user_email[];
+        refreshToken: refresh_token
     }
     > {
         return prisma.user.create({
@@ -124,14 +127,14 @@ export class AuthenticationRepository{
             },
             include: {
                 account: true,
-                user_email: true,
+                refreshToken: true,
             },
         });
     }
 
     getUserByUsername(username: string): Promise<user & { password: password }> {
         return this.prismaService.user.findUnique({
-            where: { username },
+            where: {username},
             include: {
                 password: true,
             },
@@ -140,18 +143,18 @@ export class AuthenticationRepository{
 
     async deleteRefreshToken(id: number): Promise<refresh_token> {
         return this.prismaService.refresh_token.delete({
-            where: { id },
+            where: {id},
         });
     }
 
     async getOrCreateUserRefreshToken(id: bigint): Promise<refresh_token> {
         return this.prismaService.refresh_token.upsert({
-            where: { id },
+            where: {userId: id},
             update: {},
             create: {
                 token: this.generateRefreshToken(),
                 user: {
-                    connect: { id },
+                    connect: {id},
                 }
             },
         });
@@ -161,7 +164,7 @@ export class AuthenticationRepository{
         return randomBytes(32).toString('hex');
     }
 
-    async getUserRolePermissions(id: bigint): Promise<(role_permission & {role: role, permission:permission})[]> {
+    async getUserRolePermissions(id: bigint): Promise<(role_permission & { role: role, permission: permission })[]> {
         return this.prismaService.role_permission.findMany({
             where: {
                 role: {
@@ -176,6 +179,60 @@ export class AuthenticationRepository{
                 permission: true,
                 role: true,
             }
+        });
+    }
+
+    async getUserRolesAndPermissions(userId: bigint): Promise<{
+        roles: string[];
+        permissions: { resource: string; privilege: privilege }[];
+    }> {
+        const res = await this.prismaService.user.findUnique({
+            where: {
+                id: userId,
+            },
+            select: {
+                userRole: {
+                    select: {
+                        role: {
+                            select: {
+                                name: true,
+                                rolePermissions: {
+                                    select: {
+                                        permission: {
+                                            select: {
+                                                resource: true,
+                                                privilege: true,
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        });
+        return {
+            roles: res.userRole.map((it) => it.role.name),
+            permissions: res.userRole.reduce((acc, it) => {
+                return acc.concat(it.role.rolePermissions.map((it) => it.permission));
+            }, []),
+        };
+
+    }
+
+    getRefreshToken(
+        userId: number,
+        token: string,
+    ): Promise<(refresh_token & { user: user }) | null> {
+        return this.prismaService.refresh_token.findFirst({
+            where: {
+                userId: BigInt(userId),
+                token,
+            },
+            include: {
+                user: true,
+            },
         });
     }
 }

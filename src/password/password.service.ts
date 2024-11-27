@@ -1,10 +1,10 @@
 import {ConflictException, ForbiddenException, Injectable} from "@nestjs/common";
-import {MailingService} from "../auth/mailing.service";
 import {TokenService} from "../auth/token.service";
 import {PasswordRepository} from "./password.repository";
 import {PasswordConfig} from "./password.config";
 import {AuthUtils} from "../auth/auth.util";
 import {UpdatePasswordDto} from "./entities/update-password.dto";
+import {MailingService} from "../notifications/mailing.service";
 
 @Injectable()
 export class PasswordService {

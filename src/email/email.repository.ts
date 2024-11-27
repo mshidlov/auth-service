@@ -1,8 +1,8 @@
 import {Injectable} from "@nestjs/common";
-import {PrismaService} from "../auth/prisma.service";
 import {user, user_email} from "@prisma/client";
 import {LimitationExceedException, UniqueException} from "./exceptions";
 import {EmailConfig} from "./email.config";
+import {PrismaService} from "../data-access";
 
 @Injectable()
 export class EmailRepository {

@@ -1,7 +1,6 @@
 import { Injectable } from "@nestjs/common";
-import {PrismaService} from "../auth/prisma.service";
 import {password, user, user_email} from "@prisma/client";
-import {UniqueException} from "../email/exceptions";
+import {PrismaService} from "../data-access";
 
 @Injectable()
 export class PasswordRepository{

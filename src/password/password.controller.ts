@@ -3,11 +3,12 @@ import {ForgotPasswordDto} from "./entities/forgot-password.dto";
 import {PasswordService} from "./password.service";
 import {ApiResponse} from "@nestjs/swagger";
 import {ResetPasswordDto} from "./entities/reset-password.dto";
-import {JwtGuard} from "../auth/jwt.guard";
 import {IntParam, Permissions} from "../decorators";
 import {UpdatePasswordDto} from "./entities/update-password.dto";
-import {JwtPayload} from "../auth/jwt-payload.decorator";
-import {JwtPayloadDto} from "../auth/jwt-payload.dto";
+import {JwtGuard} from "../auth/guards";
+import {JwtPayload} from "../auth/decorators";
+import {JwtPayloadDto} from "../auth/entities";
+
 
 
 @Controller("user")
