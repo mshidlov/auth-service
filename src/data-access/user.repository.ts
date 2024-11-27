@@ -1,16 +1,17 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from './prisma.service';
+import {Injectable, Logger} from '@nestjs/common';
+import {PrismaService} from './prisma.service';
 import {
-  password,
-  user,
-  privilege,
   account,
+  password,
   permission,
-  user_role,
-  role,
   PrismaClient,
+  privilege,
   refresh_token,
+  role,
+  single_sign_on_origin,
+  user,
   user_email,
+  user_role,
 } from '@prisma/client';
 import * as runtime from '@prisma/client/runtime/library';
 
@@ -408,6 +409,77 @@ export class UserRepository {
           id: user_email.id,
         },
       });
+    });
+  }
+
+  async findBySSOId(id: string, single_sign_on_origin:single_sign_on_origin): Promise<user & {account:account,refreshToken:refresh_token}> {
+    return this.prisma.user.findFirst({
+      where: {
+        third_party_auth: {
+          some: {
+            originId: id,
+            origin: single_sign_on_origin,
+          },
+        },
+      },
+      include: {
+        account: true,
+        refreshToken: true,
+      }
+    });
+
+  }
+
+  async createNewSSOUser(single_sign_id: string, single_sign_on_origin:single_sign_on_origin, emaill:string, firstName: string, lastName: string): Promise<{
+    user: user & { account:account,refreshToken:refresh_token }
+    permissions: permission[]
+    userRole: user_role & { role: role }
+  }>{
+    return this.prisma.$transaction(async (connection) => {
+      const user = await connection.user.create({
+        data: {
+          username: emaill,
+          account: {
+            create: {},
+          },
+          refreshToken: {
+            create: {
+              token: this.generateRefreshToken(),
+            },
+          },
+          user_email: {
+            create: {
+              email: emaill,
+              isPrimary: true,
+            },
+          },
+          firstName: firstName,
+          lastName: lastName,
+          third_party_auth: {
+            create: {
+              origin: single_sign_on_origin,
+              originId: single_sign_id,
+            },
+          },
+        },
+        include: {
+          account: true,
+          refreshToken: true,
+        },
+      });
+
+        const permissions = await this.getPermissions(connection);
+        const userRole = await this.createAccountOwnerRole(
+            connection,
+            user.id,
+            user.accountId,
+            permissions,
+        );
+        return {
+          user,
+          permissions,
+          userRole,
+        };
     });
   }
 }

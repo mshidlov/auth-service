@@ -1,12 +1,9 @@
 import {Injectable, Logger, UnauthorizedException} from "@nestjs/common";
-import {LoginRequest, LoginResponse} from "./entities";
-import {AuthUtils} from "../auth/auth.util";
-import {TokenService} from "../auth/token.service";
+import {JwtPayloadDto, LoginRequest, LoginResponse, PermissionsDto, PrivilegeEnum} from "./entities";
+import {AuthUtils} from "./auth.util";
+import {TokenService} from "./token.service";
 import {AuthenticationRepository} from "./authentication.repository";
-import {JwtPayloadDto} from "../auth/jwt-payload.dto";
 import {permission, refresh_token, role_permission} from "@prisma/client";
-import {PrivilegeEnum} from "../auth/privilege.enum";
-import {PermissionsDto} from "../auth/permissions.dto";
 
 @Injectable()
 export class AuthenticationService{

@@ -1,9 +1,9 @@
 import { AuthGuard } from '@nestjs/passport';
 import {ExecutionContext, Injectable} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { PUBLIC_DECORATOR_KEY } from './is-public.decorator';
-import { REQUIRE_PERMISSIONS_DECORATOR_KEY } from './permissions.decorator';
-import { PrivilegeEnum } from './privilege.enum';
+import { PUBLIC_DECORATOR_KEY } from '../decorators/is-public.decorator';
+import { REQUIRE_PERMISSIONS_DECORATOR_KEY } from '../decorators/permissions.decorator';
+import { PrivilegeEnum } from '../entities';
 
 @Injectable()
 export class JwtGuard extends AuthGuard('jwt') {

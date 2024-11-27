@@ -1,5 +1,5 @@
 import {Injectable} from "@nestjs/common";
-import {PrismaService} from "../auth/prisma.service";
+import {PrismaService} from "../data-access";
 import {
     account,
     password,

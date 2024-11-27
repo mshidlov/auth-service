@@ -1,5 +1,0 @@
-export const serviceTokensConstants= {
-  JWT_SERVICE_TOKEN: "JWT_SERVICE_TOKEN",
-  EMAILS_JWT_SERVICE_TOKEN: "EMAILS_JWT_SERVICE_TOKEN"
-}
-

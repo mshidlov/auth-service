@@ -1,10 +1,9 @@
 import {Body, Controller, Get, Logger, Param, ParseIntPipe, Post, Res, UseGuards} from "@nestjs/common";
-import {LoginRequest, LoginResponse, SignupRequest} from "./entities";
-import {JwtGuard} from "../auth/jwt.guard";
+import {JwtPayloadDto, LoginRequest, LoginResponse, SignupRequest} from "./entities";
 import {AuthenticationService} from "./authentication.service";
 import {Response} from "express";
-import {JwtPayload} from "../auth/jwt-payload.decorator";
-import {JwtPayloadDto} from "../auth/jwt-payload.dto";
+import {JwtGuard} from "./guards";
+import {JwtPayload} from "./decorators/jwt-payload.decorator";
 
 @Controller()
 export class AuthenticationController{

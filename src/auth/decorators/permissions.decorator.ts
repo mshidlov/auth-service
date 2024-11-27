@@ -1,4 +1,4 @@
-import { PrivilegeEnum } from './privilege.enum';
+import { PrivilegeEnum } from '../entities';
 import { CustomDecorator, SetMetadata } from '@nestjs/common';
 
 export const REQUIRE_PERMISSIONS_DECORATOR_KEY = 'require-permissions';
