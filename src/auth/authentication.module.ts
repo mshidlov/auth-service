@@ -3,9 +3,9 @@ import {AuthenticationService} from "./authentication.service";
 import {AuthenticationRepository} from "./authentication.repository";
 import {AuthUtils} from "./auth.util";
 import {PrismaService} from "../data-access";
-import {AuthOptions} from "../legacy";
 import {TokenService} from "./token.service";
 import {AuthenticationController} from "./authentication.controller";
+import {AuthOptions} from "./entities/auth-options.dto";
 
 @Module({
     controllers: [AuthenticationController],

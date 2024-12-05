@@ -2,7 +2,7 @@ import { randomBytes, pbkdf2 } from 'crypto';
 import { compare, genSalt, hash as bcryptHash } from 'bcrypt';
 import { hash as argon2Hash, verify, argon2id } from 'argon2';
 import { Injectable, Logger } from '@nestjs/common';
-import { AuthOptions } from '../legacy/entities';
+import {AuthOptions} from "./entities/auth-options.dto";
 
 interface PasswordHash {
   salt: string;
