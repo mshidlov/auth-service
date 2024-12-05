@@ -4,9 +4,11 @@ import {AuthenticationRepository} from "./authentication.repository";
 import {AuthUtils} from "./auth.util";
 import {PrismaService} from "../data-access";
 import {AuthOptions} from "../legacy";
+import {TokenService} from "./token.service";
+import {AuthenticationController} from "./authentication.controller";
 
 @Module({
-    controllers: [AuthenticationModule],
+    controllers: [AuthenticationController],
     providers: [
         {
             provide: AuthOptions,
@@ -21,6 +23,7 @@ import {AuthOptions} from "../legacy";
             },
         },
         PrismaService,
+        TokenService,
         AuthUtils,
         AuthenticationRepository,
         AuthenticationService],

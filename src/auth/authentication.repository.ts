@@ -9,7 +9,7 @@ import {
     role_permission,
     user,
     user_role,
-    PrismaClient, privilege
+    PrismaClient, privilege, single_sign_on_origin
 } from "@prisma/client";
 import * as runtime from '@prisma/client/runtime/library';
 import { randomBytes } from 'crypto';
@@ -234,5 +234,94 @@ export class AuthenticationRepository {
                 user: true,
             },
         });
+    }
+
+    async getUserByProviderId(single_sign_on_origin:single_sign_on_origin, id: string): Promise<user & {
+        account: account;
+        refreshToken: refresh_token
+    }> {
+        return this.prismaService.user.findFirst({
+            where: {
+                third_party_auth: {
+                    some: {
+                        originId: id,
+                        origin: single_sign_on_origin,
+                    }
+                }
+            },
+            include: {
+                account: true,
+                refreshToken: true,
+            },
+        })
+    }
+
+    async createSsoUserAccount(single_sign_on_origin: single_sign_on_origin, id: string, email: string, username: string, firstName: string, lastName: string):Promise<{
+        user: user & {
+            account: account;
+            refreshToken: refresh_token;
+        };
+        permissions: permission[];
+        userRole: user_role & { role: role };
+    }> {
+        return this.prismaService.$transaction(async (prisma) => {
+            const user = await prisma.user.create({
+                data: {
+                    username: username,
+                    firstName,
+                    lastName,
+                    isVerified: true,
+                    account: {
+                        create: {},
+                    },
+                    refreshToken: {
+                        create: {
+                            token: this.generateRefreshToken(),
+                        },
+                    },
+                    user_email: {
+                        create: {
+                            isVerified: true,
+                            isPrimary: true,
+                            email,
+                        },
+                    },
+                    third_party_auth: {
+                        create: {
+                            origin: single_sign_on_origin,
+                            originId: id,
+                        },
+                    },
+                },
+                include: {
+                    account: true,
+                    refreshToken: true,
+                    third_party_auth: true,
+                },
+            });
+            const permissions = await this.getPermissions(prisma);
+            const userRole = await this.createAccountOwnerRole(
+                prisma,
+                user.id,
+                user.accountId,
+                permissions,
+            );
+            return {
+                user,
+                permissions,
+                userRole,
+            };
+        });
+    }
+
+    async isEmailExist(email: string): Promise<boolean> {
+        return !!(await this.prismaService.user_email.findUnique({
+            select: {
+                id: true,
+            },
+            where: {
+                email,
+            },
+        }))
     }
 }

@@ -6,12 +6,14 @@ import {JwtModule} from "@nestjs/jwt";
 import {Reflector} from "@nestjs/core";
 import * as process from "node:process";
 import {AuthenticationModule} from "./auth/authentication.module";
-import {JwtStrategy} from "./auth/strategies";
+import {GoogleStrategy, JwtStrategy} from "./auth/strategies";
 import {JwtGuard} from "./auth/guards";
 import {AuthOptions} from "./legacy";
 import {DataAccessModule} from "./data-access/data-access.module";
+import {GlobalConfigurationsModule} from "./global-configurations.module";
 @Module({
   imports: [
+    GlobalConfigurationsModule,
     DataAccessModule,
     PassportModule.register({ defaultStrategy: 'jwt', session: false }),
     JwtModule.register({
@@ -23,7 +25,7 @@ import {DataAccessModule} from "./data-access/data-access.module";
     }),
     AuthenticationModule,
     UserModule],
-    providers: [JwtStrategy,Reflector,JwtGuard,    {
+    providers: [JwtStrategy, GoogleStrategy,Reflector,JwtGuard,    {
       provide: AuthOptions,
       useValue: {
         saltLength: 64,

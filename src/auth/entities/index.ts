@@ -4,4 +4,4 @@ export * from './signup.request';
 export * from './privilege.enum';
 export * from './permissions.dto';
 export * from './jwt-payload.dto';
-export * from './profile-payload.dto';
+export * from './sso-payload.dto';

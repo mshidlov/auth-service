@@ -1,7 +1,7 @@
 import {
     Body,
     Controller,
-    Get,
+    Get, HttpStatus,
     Logger,
     Param,
     ParseIntPipe,
@@ -10,17 +10,21 @@ import {
     UnauthorizedException,
     UseGuards
 } from "@nestjs/common";
-import {JwtPayloadDto, LoginRequest, LoginResponse, SignupRequest} from "./entities";
+import {JwtPayloadDto, LoginRequest, LoginResponse, SsoPayloadDto, SignupRequest} from "./entities";
 import {AuthenticationService} from "./authentication.service";
 import {Response, Request} from "express";
 import {JwtGuard} from "./guards";
-import {JwtPayload} from "./decorators";
+import {JwtPayload, ProfilePayload} from "./decorators";
+import {AuthGuard} from "@nestjs/passport";
+import {AuthenticationConf} from "./authentication.conf";
 
 @Controller()
 export class AuthenticationController{
     private readonly logger = new Logger(AuthenticationController.name);
 
-    constructor(private authenticationService: AuthenticationService) {
+    constructor(
+        private authenticationConf: AuthenticationConf,
+        private authenticationService: AuthenticationService) {
     }
 
     @Post('login')
@@ -64,7 +68,7 @@ export class AuthenticationController{
         if(userId != jwtPayload.id){
             throw new UnauthorizedException("Action is not allowed")
         }
-        const token = await this.authenticationService.logout(jwtPayload,userId);
+        await this.authenticationService.logout(jwtPayload,userId);
         this.clearCookies(response);
         return;
     }
@@ -112,4 +116,37 @@ export class AuthenticationController{
         res.clearCookie('access_token');
         res.clearCookie('refresh_token');
     }
+
+    @Get('google/login')
+    @UseGuards(AuthGuard('google'))
+    async googleLogin() {
+        // Initiates Google OAuth flow
+    }
+
+
+    @Get('google/signup')
+    @UseGuards(AuthGuard('google'))
+    async googleSignup() {
+        // Initiates Google OAuth flow
+    }
+
+    @Get('google/redirect')
+    @UseGuards(AuthGuard('google'))
+    async googleAuthRedirect(@ProfilePayload() profile: SsoPayloadDto, @Res() res): Promise<void> {
+        if (!profile?.id) {
+            this.logger.error('Error in Google authentication: profile is empty');
+            res.redirect(HttpStatus.FOUND, `${this.authenticationConf.sso_error_page_url}?message=Error in Google authentication`);
+            return;
+        }
+
+        try {
+            const result = await this.authenticationService.sso('GOOGLE',profile)
+            this.setCookies(res, result.access_token, result.refresh_token);
+            res.redirect(HttpStatus.FOUND, this.authenticationConf.sso_login_success_redirect_url);
+        } catch (error) {
+            this.logger.error(`Error in Google authentication, google id ${profile.id}, email ${profile.email}`, error);
+            res.redirect(HttpStatus.FOUND, `${this.authenticationConf.sso_error_page_url}?message=Error in Google authentication`);
+        }
+    }
+
 }

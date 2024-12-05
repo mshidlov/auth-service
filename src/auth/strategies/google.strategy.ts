@@ -1,20 +1,37 @@
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
-import { Strategy, VerifyCallback } from 'passport-google-oauth20';
+import { Strategy } from 'passport-google-oauth20';
+import {SsoPayloadDto} from "../entities";
+import {Request} from "express";
+import {AuthenticationConf} from "../authentication.conf";
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
-    constructor() {
+
+
+    constructor(authenticationConf: AuthenticationConf) {
         super({
-            clientID: process.env.GOOGLE_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-            callbackURL: 'http://localhost:3000/auth/google/redirect',
+            clientID: authenticationConf.google_client_id,
+            clientSecret: authenticationConf.google_client_secret,
+            callbackURL: authenticationConf.google_redirect_url,
             scope: ['email', 'profile'],
+            passReqToCallback: true,
         });
     }
 
-    async validate(accessToken: string, refreshToken: string, profile: any, done: VerifyCallback): Promise<any> {
-        // Pass the raw profile to the controller
-        done(null, { profile, accessToken });
+    async validate(request: Request, accessToken: string, refreshToken: string, profile: any): Promise<SsoPayloadDto> {
+
+        const email:string = profile?.emails?.length ? profile.emails[0].value : undefined
+        const verified: boolean = profile?.emails?.length ? profile.emails[0].verified : false
+        const  firstName: string = profile?.name?.givenName
+        const  lastName: string = profile?.name?.familyName
+        return {
+            id: profile.id,
+            username: email,
+            email,
+            verified,
+            firstName,
+            lastName,
+        }
     }
 }

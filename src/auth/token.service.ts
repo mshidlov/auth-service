@@ -1,6 +1,7 @@
 import {Injectable} from "@nestjs/common";
 
 import * as jwt from 'jsonwebtoken';
+import {AuthenticationConf} from "./authentication.conf";
 
 export interface JwtHeader {
     alg: string | Algorithm;
@@ -35,11 +36,15 @@ export interface Jwt {
 
 @Injectable()
 export class TokenService {
-
-    constructor(private options:{
-        secretKey: string
-        expiresIn: string
-    }) {
+    private options:{
+            secretKey: string
+            expiresIn: string
+        }
+    constructor(authenticationConf: AuthenticationConf) {
+        this.options = {
+            secretKey: authenticationConf.jwt_secret,
+            expiresIn: authenticationConf.jwt_expire_in
+        }
     }
 
     verify(token: string, options?:{
