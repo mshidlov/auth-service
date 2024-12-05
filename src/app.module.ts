@@ -8,9 +8,9 @@ import * as process from "node:process";
 import {AuthenticationModule} from "./auth/authentication.module";
 import {GoogleStrategy, JwtStrategy} from "./auth/strategies";
 import {JwtGuard} from "./auth/guards";
-import {AuthOptions} from "./legacy";
 import {DataAccessModule} from "./data-access/data-access.module";
 import {GlobalConfigurationsModule} from "./global-configurations.module";
+import {AuthOptions} from "./auth/entities/auth-options.dto";
 @Module({
   imports: [
     GlobalConfigurationsModule,
