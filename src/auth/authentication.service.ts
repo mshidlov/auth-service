@@ -122,12 +122,16 @@ export class AuthenticationService {
         return this.loginNewUser(user, [userRole], permissions);
     }
 
-    async logout(jwtPayload: JwtPayloadDto, userId: number): Promise<refresh_token> {
+    async logout(access_token:string, refresh_token:string, userId: number): Promise<refresh_token> {
+        const jwtPayload = await this.tokenPayload(access_token);
         if (jwtPayload.id !== userId) {
-            throw new UnauthorizedException('User is not authorized to perform this action');
+            throw new UnauthorizedException('Invalid token provided.');
         }
-
-        return await this.authenticationRepository.deleteRefreshToken(jwtPayload.id);
+        const token = await this.authenticationRepository.deleteRefreshToken(jwtPayload.id,refresh_token);
+        if(token){
+            this.logger.log(`User ${jwtPayload.id} logout successfully user ${userId}`);
+        }
+        return token
     }
 
     private async tokenPayload(jwt: string): Promise<JwtPayloadDto> {

@@ -141,9 +141,12 @@ export class AuthenticationRepository {
         });
     }
 
-    async deleteRefreshToken(id: number): Promise<refresh_token> {
+    async deleteRefreshToken(id: number,refresh_token:string): Promise<refresh_token> {
         return this.prismaService.refresh_token.delete({
-            where: {id},
+            where: {
+                id,
+                token: refresh_token,
+            },
         });
     }
 
