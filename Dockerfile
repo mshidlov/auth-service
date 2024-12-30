@@ -1,11 +1,13 @@
+ARG NODE_DOCKER_IMAGE_TAG=20-alpine3.17
+
 # Stage 1: Install dependencies only when needed
-FROM node:18-alpine AS deps
+FROM node:${NODE_DOCKER_IMAGE_TAG} AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm install
 
 # Stage 2: Build and compile the code
-FROM node:18-alpine AS build
+FROM node:${NODE_DOCKER_IMAGE_TAG} AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY *.json ./
@@ -19,7 +21,7 @@ RUN npm ci
 RUN npm run db:generate
 
 # Stage 3: Production image, copy all the files and run the application
-FROM node:18-alpine AS runner
+FROM node:${NODE_DOCKER_IMAGE_TAG} AS runner
 WORKDIR /app
 
 # Copy the build output from the builder stage

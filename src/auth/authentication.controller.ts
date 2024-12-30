@@ -10,11 +10,10 @@ import {
     UnauthorizedException,
     UseGuards
 } from "@nestjs/common";
-import {JwtPayloadDto, LoginRequest, LoginResponse, SsoPayloadDto, SignupRequest} from "./entities";
+import {LoginRequest, LoginResponse, SsoPayloadDto, SignupRequest} from "./entities";
 import {AuthenticationService} from "./authentication.service";
 import {Response, Request} from "express";
-import {JwtGuard} from "./guards";
-import {JwtPayload, ProfilePayload} from "./decorators";
+import {ProfilePayload} from "./decorators";
 import {AuthGuard} from "@nestjs/passport";
 import {AuthenticationConf} from "./authentication.conf";
 
@@ -60,15 +59,14 @@ export class AuthenticationController{
     }
 
 
-    @UseGuards(JwtGuard)
     @Get('logout/:user-id')
-    async logout(@JwtPayload() jwtPayload:JwtPayloadDto,
-                  @Param('user-id', ParseIntPipe) userId: number,
+    async logout(@Param('user-id', ParseIntPipe) userId: number,
+                 @Req() req: Request,
                   @Res({ passthrough: true }) response:Response):Promise<void>{
-        if(userId != jwtPayload.id){
+        if(!(req.cookies.refresh_token && req.cookies.access_token)){
             throw new UnauthorizedException("Action is not allowed")
         }
-        await this.authenticationService.logout(jwtPayload,userId);
+        await this.authenticationService.logout(req.cookies.access_token, req.cookies.refresh_token,userId);
         this.clearCookies(response);
         return;
     }
