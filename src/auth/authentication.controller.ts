@@ -10,11 +10,10 @@ import {
     UnauthorizedException,
     UseGuards
 } from "@nestjs/common";
-import {JwtPayloadDto, LoginRequest, LoginResponse, SsoPayloadDto, SignupRequest} from "./entities";
+import {LoginRequest, LoginResponse, SsoPayloadDto, SignupRequest} from "./entities";
 import {AuthenticationService} from "./authentication.service";
 import {Response, Request} from "express";
-import {JwtGuard} from "./guards";
-import {JwtPayload, ProfilePayload} from "./decorators";
+import {ProfilePayload} from "./decorators";
 import {AuthGuard} from "@nestjs/passport";
 import {AuthenticationConf} from "./authentication.conf";
 
