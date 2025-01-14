@@ -59,12 +59,12 @@ export class AuthenticationController{
     }
 
 
-    @Get('logout/:user-id')
-    async logout(@Param('user-id', ParseIntPipe) userId: number,
+    @Get('logout/:userId')
+    async logout(@Param('userId', ParseIntPipe) userId: number,
                  @Req() req: Request,
                   @Res({ passthrough: true }) response:Response):Promise<void>{
         if(!(req.cookies.refresh_token && req.cookies.access_token)){
-            throw new UnauthorizedException("Action is not allowed")
+            return
         }
         await this.authenticationService.logout(req.cookies.access_token, req.cookies.refresh_token,userId);
         this.clearCookies(response);

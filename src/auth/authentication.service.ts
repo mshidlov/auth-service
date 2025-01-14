@@ -127,11 +127,16 @@ export class AuthenticationService {
         if (jwtPayload.id !== userId) {
             throw new UnauthorizedException('Invalid token provided.');
         }
-        const token = await this.authenticationRepository.deleteRefreshToken(jwtPayload.id,refresh_token);
-        if(token){
-            this.logger.log(`User ${jwtPayload.id} logout successfully user ${userId}`);
+        try {
+            const token = await this.authenticationRepository.deleteRefreshToken(jwtPayload.id, refresh_token);
+            if (token) {
+                this.logger.log(`User ${jwtPayload.id} logout successfully user ${userId}`);
+            }
+            return token
+        } catch (error) {
+            this.logger.error(`User ${jwtPayload.id} failed logout user ${userId} refresh token ${refresh_token}`, error.message);
+            throw error;
         }
-        return token
     }
 
     private async tokenPayload(jwt: string): Promise<JwtPayloadDto> {
