@@ -1,4 +1,4 @@
-import {Injectable} from "@nestjs/common";
+import {Injectable, UnauthorizedException} from "@nestjs/common";
 import {PrismaService} from "../data-access";
 import {
     account,
@@ -141,14 +141,26 @@ export class AuthenticationRepository {
         });
     }
 
-    async deleteRefreshToken(id: number,refresh_token:string): Promise<refresh_token> {
-        return this.prismaService.refresh_token.delete({
-            where: {
-                id,
-                token: refresh_token,
-            },
-        });
+    async deleteRefreshToken(userId: number, refresh_token: string): Promise<refresh_token> {
+        return this.prismaService.$transaction(async (connection)=>{
+            const found = await connection.refresh_token.findFirst({
+                where: {
+                    userId,
+                    token: refresh_token,
+                },
+            });
+            if (!found) {
+                throw new UnauthorizedException('Refresh token does not exist or token mismatch');
+            }
+
+            return connection.refresh_token.delete({
+                where: {
+                    id: found.id
+                },
+            });
+        })
     }
+
 
     async getOrCreateUserRefreshToken(id: bigint): Promise<refresh_token> {
         return this.prismaService.refresh_token.upsert({
